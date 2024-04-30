@@ -116,7 +116,8 @@ async function searchLoadCombination(factor, vcombArray, newVCOMB, loadNames, lo
           // Calculate the maximum selected force value and its corresponding factor
           for (const forceData of filteredForces) {
               // Calculate the selected force value
-              const selectedForceValue = forceData[selectedForceIndex] * factor;
+              const selectedForceValue = Math.abs(forceData[selectedForceIndex] * factor);
+
 
               // Update maxForceValue and correspondingFactor if necessary
               if (selectedForceValue > maxForceValue) {
@@ -220,7 +221,7 @@ async function add_envelope(selectedObject, loadNames, loadCombinations, selecte
 
               // Calculate the maximum force value for the selected force
               for (const forceData of filteredForces) {
-                  const forceValue = forceData[selectedForce] * vcombObj.FACTOR;
+                  const forceValue = Math.abs(forceData[selectedForce] * vcombObj.FACTOR);
 
                   if (forceValue > maxForceValue) {
                       maxForceValue = forceValue;
@@ -458,6 +459,7 @@ async function BreakdownData(selectedForce) {
           const lastLoadCombinationID = Object.keys(loadCombinations).length;
           const newLoadCombinationID = lastLoadCombinationID + 1;
           console.log(lastLoadCombinationID);
+          updatedObject.iTYPE = 0;
           
           const payload = {
               Assign: updatedObject
