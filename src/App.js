@@ -12,7 +12,6 @@ import { Radio, RadioGroup } from "@midasit-dev/moaui";
 import { useEffect } from "react";
 import { useState } from "react";
 
-const DEBOUNCE_DELAY = 300; // milliseconds
 function Separator() {
   return (
     <div width="100%">
@@ -39,7 +38,7 @@ function App() {
   const handleCheckboxChange = (name) => {
     if (selectedCheckboxes.includes(name)) {
       // If the checkbox is already selected, remove it from the state
-        setSelectedCheckboxes(
+      setSelectedCheckboxes(
         selectedCheckboxes.filter((checkbox) => checkbox !== name)
       );
     } else {
@@ -59,27 +58,27 @@ function App() {
     setAll(!all);
   };
 
-  function debounce(func, delay) {
-    let timeoutId;
+  // function debounce(func, delay) {
+  //   let timeoutId;
 
-    return function () {
-      const context = this;
-      const args = arguments;
+  //   return function () {
+  //     const context = this;
+  //     const args = arguments;
 
-      clearTimeout(timeoutId);
+  //     clearTimeout(timeoutId);
 
-      timeoutId = setTimeout(() => {
-        func.apply(context, args);
-      }, delay);
-    };
-  }
+  //     timeoutId = setTimeout(() => {
+  //       func.apply(context, args);
+  //     }, delay);
+  //   };
+  // }
 
-  const handleInputChangeDebounced = (value) => {
-    // Handle the input change here
-    // console.log('New value:', value);
-    setNewLoadCaseName(value);
-  };
-  const debouncedHandleInputChange = debounce(handleInputChangeDebounced, 300);
+  // const handleInputChangeDebounced = (value) => {
+  //   // Handle the input change here
+  //   // console.log('New value:', value);
+  //   setNewLoadCaseName(value);
+  // };
+  // const debouncedHandleInputChange = debounce(handleInputChangeDebounced, 300);
 
   async function searchLoadCombination(
     factor,
@@ -323,13 +322,18 @@ function App() {
   async function BreakdownData(selectedForces) {
     try {
       // Fetch the necessary data
-      // const beamforces = await fetchDataOnce();
       await fetchData();
       const LoadCombinations = comb;
+
+      // Calculate the last key of the LoadCombinations object
+      let lastKey = parseInt(Object.keys(LoadCombinations).pop(), 10);
+      console.log("Last key:", lastKey);
+
       console.log(LoadCombinations);
       loadCombinations = Object.values(LoadCombinations);
       console.log(LoadCombinations);
       console.log(loadCombinations);
+
       const element = await fetchElement();
       if (!newLoadCaseName) {
         enqueueSnackbar("Please enter a new load case name", {
@@ -376,6 +380,7 @@ function App() {
           PARTS: [`Part ${selectedPart}`],
         },
       };
+
       const stct = await midasAPI("GET", "/db/stct");
       const stldData = await midasAPI("GET", "/db/stld");
       const smlc = await midasAPI("GET", "/db/smlc");
@@ -397,9 +402,7 @@ function App() {
           const names_max = [];
           // Handle case when iTYPE is equal to 0
           if (combination.iTYPE === 0) {
-            // Add both names for CB:all and CB
             names_max.push(`${combination.NAME}(CBC:max)`);
-            // names.push(`${combination.NAME}(CB:min)`);
             names_max.push(`${combination.NAME}(CBC)`);
             names_max.push(`${combination.NAME}(CB:max)`);
             names_max.push(`${combination.NAME}(CB)`);
@@ -410,13 +413,11 @@ function App() {
             names_max.push(`${combination.NAME}(CBSC:max)`);
             names_max.push(`${combination.NAME}(CBSC)`);
           } else if (combination.iTYPE === 1) {
-            // Handle case when iTYPE is equal to 1
             names_max.push(`${combination.NAME}(CB:max)`);
             names_max.push(`${combination.NAME}(CBC:max)`);
             names_max.push(`${combination.NAME}(CBS:max)`);
             names_max.push(`${combination.NAME}(CBR:max)`);
             names_max.push(`${combination.NAME}(CBSC:max)`);
-            // names.push(`${combination.NAME}(CB:min)`);
           }
           // Return an array of names
           return names_max;
@@ -428,9 +429,7 @@ function App() {
         .filter((combination) => typeof combination === "object") // Filter out non-object properties
         .map((combination) => {
           const names_min = [];
-          // Handle case when iTYPE is equal to 0
           if (combination.iTYPE === 0) {
-            // Add both names for CB:all and CB
             names_min.push(`${combination.NAME}(CBC:min)`);
             names_min.push(`${combination.NAME}(CBC)`);
             names_min.push(`${combination.NAME}(CB:min)`);
@@ -442,20 +441,18 @@ function App() {
             names_min.push(`${combination.NAME}(CBSC:min)`);
             names_min.push(`${combination.NAME}(CBSC)`);
           } else if (combination.iTYPE === 1) {
-            // Handle case when iTYPE is equal to 1
             names_min.push(`${combination.NAME}(CB:min)`);
             names_min.push(`${combination.NAME}(CBC:min)`);
             names_min.push(`${combination.NAME}(CBS:min)`);
             names_min.push(`${combination.NAME}(CBR:min)`);
             names_min.push(`${combination.NAME}(CBSC:min)`);
           }
-          // Return an array of names
           return names_min;
         })
-        .flat() // Flatten the nested arrays
-        .filter((name) => name !== null); // Filter out null values if any
+        .flat()
+        .filter((name) => name !== null);
 
-      /// push static loadcase construction stage in loadNames array ///
+      // Push static load case construction stage in loadNames array
       if (stct && stct.STCT) {
         for (const key in stct.STCT) {
           const item = stct.STCT[key];
@@ -471,7 +468,7 @@ function App() {
         }
       }
 
-      /// push static loadcase in loadNames array ///
+      // Push static load case in loadNames array
       if (stldData && Object.keys(stldData)[0].length > 0) {
         const stldKeys = Object.keys(stldData)[0];
         if (stldKeys && stldKeys.length > 0) {
@@ -486,13 +483,12 @@ function App() {
         }
       }
 
-      /// push settlement loadcase in loadNames array ///
+      // Push settlement load case in loadNames array
       if (smlc && smlc.SMLC) {
         for (const key in smlc.SMLC) {
           const item = smlc.SMLC[key];
           if (item.NAME) {
             const smlcName = item.NAME;
-            // Push smlcName into both arrays
             loadNames.push(smlcName);
             loadCombinationNames_max.push(`${smlcName}(SM:max)`);
             loadCombinationNames_min.push(`${smlcName}(SM:min)`);
@@ -500,17 +496,13 @@ function App() {
         }
       }
 
-      /// push moving laodcase in loadNames array ///
+      // Push moving load case in loadNames array
       if (mvld && mvld.MVLD) {
-        // Iterate through each key in the MVLD object
         for (const key in mvld.MVLD) {
           if (mvld.MVLD.hasOwnProperty(key)) {
-            // Get the item corresponding to the current key in MVLD
             const item = mvld.MVLD[key];
 
-            // Check if the item has an LCNAME property
             if (item && item.LCNAME) {
-              // Add the LCNAME to the array
               loadNames.push(item.LCNAME);
               loadCombinationNames_max.push(`${item.LCNAME}(MV:max)`);
               loadCombinationNames_min.push(`${item.LCNAME}(MV:min)`);
@@ -519,61 +511,92 @@ function App() {
         }
       }
 
+      // Push SPLC data
       if (splc && splc.SPLC) {
         for (const key in splc.SPLC) {
           const item = splc.SPLC[key];
-
-          // Check if the item has a name
           if (item.NAME) {
             const spName = item.NAME;
-
-            // Push the name into the loadNames array
             loadNames.push(spName);
-
-            // Push a modified version of the name into the loadCombinationNames array
-            // Customize this string based on your requirements
             loadCombinationNames_max.push(`${spName}(RS)`);
             loadCombinationNames_min.push(`${spName}(RS)`);
           }
         }
       }
 
+      // Initialize the newLoadCombinations object as a copy of LoadCombinations
+      let newLoadCombinations = { ...LoadCombinations };
+
+      // Check if all `vCOMB` objects' `LCNAME` values in `selectedObject` are present in `loadNames`
+        // before starting the loop
+        const selectedComb = combArray.find(item => item.NAME === selectedRadio);
+        const allLCNamesPresent = selectedComb.vCOMB.every((vcombObj) => loadNames.includes(vcombObj.LCNAME));
+
+        // If all LCNAME values are present, update selectedObject.NAME to newLoadCaseName and add it to newLoadCombinations
+        if (allLCNamesPresent) {
+           const newCombination = { ...selectedComb, NAME: newLoadCaseName };
+            // Add the new combination to newLoadCombinations at the key lastKey + 1
+           newLoadCombinations[lastKey + 1] = newCombination;
+
+            // Send the newLoadCombinations object to the midasAPI
+            const response = await midasAPI("PUT", `${successfulEndpoint}`, { Assign: newLoadCombinations });
+
+            // Provide feedback based on the response
+            if (response) {
+                enqueueSnackbar("Data successfully entered", {
+                    variant: "success",
+                    anchorOrigin: {
+                        vertical: "top",
+                        horizontal: "center",
+                    },
+                });
+            } else {
+                enqueueSnackbar("Error updating data", {
+                    variant: "error",
+                    anchorOrigin: {
+                        vertical: "top",
+                        horizontal: "center",
+                    },
+                });
+            }
+            // Break from the function as the condition is met
+            return;
+        }
+
+
+      // Define the different load combination sets
       const loadCombinationSets = [
         { name: "max", loadCombinationNames: loadCombinationNames_max },
         { name: "min", loadCombinationNames: loadCombinationNames_min },
       ];
 
-      // Iterate through max and min load combinations
+      // Iterate through each load combination set
       let a = 0;
 
       for (const { name, loadCombinationNames } of loadCombinationSets) {
         console.log(`Processing ${name} load combinations`);
+
         let iterationOffset = 0 + a;
 
         for (const selectedForce of selectedForces) {
-          // Update the LOAD_CASE_NAMES with the current set of load combinations
-          // inputObject.Argument.LOAD_CASE_NAMES = loadCombinationNames.map(
-          //   (name) => `${name}`
-          // );
           const updatedArgument = {
             ...inputObject.Argument,
             LOAD_CASE_NAMES: loadCombinationNames.map((name) => `${name}`),
           };
+
           console.log(updatedArgument);
 
+          // Call the API to get forces for each selected force
           const forces = await midasAPI("POST", "/post/table", {
             Argument: updatedArgument,
           });
 
-          // Fetch forces for each selected force
-          // const forces = await midasAPI("POST", "/post/table", {
-          //   Argument: inputObject,
-          // });
           console.log(
             `Beam forces for ${selectedForce} with ${name} load combinations:`,
             forces
           );
-          iterationOffset = iterationOffset + 1;
+
+          iterationOffset += 1;
 
           // Find the selected combination
           const selectedComb = combArray.find(
@@ -599,7 +622,7 @@ function App() {
           // Process the selected force separately
           let updatedObject = null;
           if (selectedComb.iTYPE === 0 || selectedComb.iTYPE === 1) {
-            // Call add_envelope for the current selected force with the current set of load combinations
+            // Call the add_envelope function to process the combination
             updatedObject = await add_envelope(
               selectedComb,
               loadNames,
@@ -610,67 +633,67 @@ function App() {
           }
 
           if (updatedObject) {
-            // Update the database for each selected force
-            const lastLoadCombinationID = Object.keys(loadCombinations).length;
-            const newLoadCombinationID =
-              lastLoadCombinationID + iterationOffset;
-            // Calculate the iteration offset based on the outer loop's index (1 or 2)
-            // and the inner loop's current iteration index.
-            // const iterationOffset = (loadCombinationSets.indexOf({ name: name, loadCombinationNames })) + selectedForces.indexOf(selectedForce) + 1;
+            const newLoadCombinationID = lastKey + iterationOffset;
+            console.log(`New Load Combination ID: ${newLoadCombinationID}`);
 
-            // // Calculate the newLoadCombinationID with the offset
-            // const newLoadCombinationID = lastLoadCombinationID + iterationOffset;
+            // Update properties of the updated object
             updatedObject.iTYPE = 0;
             updatedObject.NAME = `${updatedObject.NAME}_${name}`;
 
+            // Create a payload object with the Assign property
             const payload = {
               Assign: updatedObject,
             };
+
+            // Add the payload object to the newLoadCombinations object
+            newLoadCombinations[newLoadCombinationID] = payload.Assign;
 
             console.log(
               `Updating object for force ${selectedForce} with ${name} load combinations:`,
               updatedObject
             );
 
-            // Update the database
-            const newLoad = await midasAPI(
-              "PUT",
-              `${successfulEndpoint}/${newLoadCombinationID}`,
-              payload
-            );
+            // Add to newLoadCombinations object
+            //newLoadCombinations[newLoadCombinationID] = payload.Assign;
+
             console.log(
               `Updated object for force ${selectedForce} with ${name} load combinations:`,
-              newLoad
-            );
-
-            enqueueSnackbar(
-              `Data updated successfully for force ${selectedForce} with ${name} load combinations`,
-              {
-                variant: "success",
-                anchorOrigin: {
-                  vertical: "top",
-                  horizontal: "center",
-                },
-              }
+              updatedObject
             );
           } else {
             console.log(
               `Error: Updated object is null for force ${selectedForce} with ${name} load combinations.`
             );
-            enqueueSnackbar(
-              `Error updating data for force ${selectedForce} with ${name} load combinations`,
-              {
-                variant: "error",
-                anchorOrigin: {
-                  vertical: "top",
-                  horizontal: "center",
-                },
-              }
-            );
           }
+
+          // Update iterationOffset
           a = iterationOffset;
         }
       }
+
+      // Once all iterations are complete, send the newLoadCombinations object to the midasAPI
+      const response = await midasAPI("PUT", `${successfulEndpoint}`, {
+        Assign: newLoadCombinations,
+      });
+      if (response) {
+        enqueueSnackbar("Data successfully entered", {
+          variant: "success",
+          anchorOrigin: {
+            vertical: "top",
+            horizontal: "center",
+          },
+        });
+      } else {
+        console.log("Response error:", response);
+        enqueueSnackbar("Error updating data", {
+          variant: "error",
+          anchorOrigin: {
+            vertical: "top",
+            horizontal: "center",
+          },
+        });
+      }
+      console.log("New Load Combinations:", response);
     } catch (error) {
       console.error("Error in BreakdownData:", error);
       enqueueSnackbar("Error processing data", {
@@ -873,14 +896,14 @@ function App() {
                   <Textfield
                     id="load-case-name"
                     value={newLoadCaseName}
-                    // onChange={(e) => setNewLoadCaseName(e.target.value)}
+                    onChange={(e) => setNewLoadCaseName(e.target.value)}
                     // onChange={(e) => handleInputChangeDebounced(e.target.value)} // Debounced handler
-                    onChange={(e) =>
-                      debouncedHandleInputChange(
-                        e.target.value,
-                        setNewLoadCaseName
-                      )
-                    } // Debounced handler
+                    // onChange={(e) =>
+                    //   debouncedHandleInputChange(
+                    //     e.target.value,
+                    //     setNewLoadCaseName
+                    //   )
+                    // } // Debounced handler
                     placeholder={
                       selectedObject
                         ? selectedObject.Name
