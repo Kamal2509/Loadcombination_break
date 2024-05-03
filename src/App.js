@@ -34,6 +34,7 @@ function App() {
   const [selectedPart, setSelectedPart] = useState("i"); // Default to "i" or set initial value as needed
   const [selectedForce, setSelectedForce] = useState(null);
   let successfulEndpoint = null;
+  const [selectedRange, setSelectedRange] = useState('');
 
   const handleCheckboxChange = (name) => {
     if (selectedCheckboxes.includes(name)) {
@@ -58,27 +59,6 @@ function App() {
     setAll(!all);
   };
 
-  // function debounce(func, delay) {
-  //   let timeoutId;
-
-  //   return function () {
-  //     const context = this;
-  //     const args = arguments;
-
-  //     clearTimeout(timeoutId);
-
-  //     timeoutId = setTimeout(() => {
-  //       func.apply(context, args);
-  //     }, delay);
-  //   };
-  // }
-
-  // const handleInputChangeDebounced = (value) => {
-  //   // Handle the input change here
-  //   // console.log('New value:', value);
-  //   setNewLoadCaseName(value);
-  // };
-  // const debouncedHandleInputChange = debounce(handleInputChangeDebounced, 300);
 
   async function searchLoadCombination(
     factor,
@@ -319,7 +299,7 @@ function App() {
     }
   }
 
-  async function BreakdownData(selectedForces) {
+  async function BreakdownData(selectedForces, selectedRange) {
     try {
       // Fetch the necessary data
       await fetchData();
@@ -575,6 +555,8 @@ function App() {
 
       for (const { name, loadCombinationNames } of loadCombinationSets) {
         console.log(`Processing ${name} load combinations`);
+        if (selectedRange === name || selectedRange === "both") {
+          console.log(`Processing ${name} load combinations`);
 
         let iterationOffset = 0 + a;
 
@@ -670,7 +652,7 @@ function App() {
           a = iterationOffset;
         }
       }
-
+    }
       // Once all iterations are complete, send the newLoadCombinations object to the midasAPI
       const response = await midasAPI("PUT", `${successfulEndpoint}`, {
         Assign: newLoadCombinations,
@@ -708,9 +690,6 @@ function App() {
 
   let loadCombinations;
 
-  // function handleInputChange(value) {
-  //   setNewLoadCaseName(value);
-  // }
   const importLoadCombinations = async () => {
     await fetchData();
     await fetchElement();
@@ -761,25 +740,10 @@ function App() {
     }
   }
 
-  // Call `fetchElement` inside `useEffect` only when the component is mounted.
-  // useEffect(() => {
-  //   fetchElement();
-  // }, []);
-
-  // const handleClick = () => {
-  //   // enqueueMessage(enqueueSnackbar, "Select only one element", "error");
-  //   enqueueSnackbar("Select only one element", {
-  //     variant: "error",
-  //     anchorOrigin: {
-  //       vertical: "top",
-  //       horizontal: "center",
-  //     },
-  //   });
-  // };
 
   async function fetchData() {
     try {
-      let resLoadCombinations = null;
+      // let resLoadCombinations = null;
 
       // Define a list of endpoints and their respective expected data keys
       const endpointsDataKeys = [
@@ -837,292 +801,237 @@ function App() {
   const elementArray = Object.values(elem);
   console.log(elementArray);
 
-  //Main UI
-  return (
-    <div className="App">
-      {/* {showDialog && <MKeyDialog />} */}
-      {showDialog && <VerifyDialog />}
-      <GuideBox padding={2} center>
-        <Panel width={520} height={380} variant="shadow2">
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <Panel width={255} height={300} marginX={1} marginTop={2}>
-              <div
-                style={{
-                  color: "gray",
-                  fontSize: "14px",
-                  marginBottom: "10px",
-                }}
-              >
-                Select Load Combination
-              </div>
-              {/* Added wrapping div with overflow-y: auto for scrollbar */}
-              <div style={{ overflowY: "auto", maxHeight: "250px" }}>
-                <RadioGroup onChange={(e) => setSelectedRadio(e.target.value)}>
-                  {combArray.map((c) => (
-                    <Radio key={c.NAME} name={c.NAME} value={c.NAME} />
-                  ))}
-                </RadioGroup>
-              </div>
-            </Panel>
+return (
+  <div className="App">
+    {/* {showDialog && <MKeyDialog />} */}
+    {showDialog && <VerifyDialog />}
+    <GuideBox padding={2} center>
+      <Panel width={520} height={400} variant="shadow2">
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <Panel width={255} height={330} marginX={1} marginTop={2}>
+            <div
+              style={{
+                color: "gray",
+                fontSize: "14px",
+                marginBottom: "10px",
+              }}
+            >
+              Select Load Combination
+            </div>
+            {/* Added wrapping div with overflow-y: auto for scrollbar */}
+            <div style={{ overflowY: "auto", maxHeight: "280px" }}>
+              <RadioGroup onChange={(e) => setSelectedRadio(e.target.value)}>
+                {combArray.map((c) => (
+                  <Radio key={c.NAME} name={c.NAME} value={c.NAME} />
+                ))}
+              </RadioGroup>
+            </div>
+          </Panel>
 
-            <Panel width={255} height={300} marginTop={2} padding={0.25}>
+          <Panel width={255} height={330} marginTop={2} padding={0.25}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                margin: "10px",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontSize: "14px", color: "gray" }}>
+                Options for Breakdown
+              </span>
+              <br></br>
               <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  margin: "10px",
-                  justifyContent: "space-between",
-                }}
-              >
-                <span style={{ fontSize: "14px", color: "gray" }}>
-                  Options for Breakdown
-                </span>
-                <br></br>
-                <div
-                  style={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      height: "24px",
-                      display: "inline-block",
-                      verticalAlign: "bottom",
-                      marginTop: "4px",
-                    }}
-                  >
-                    LCB Title:
-                  </span>
-                  {/* <Textfield  id="my-textfield" defaultValue="" height={{height: "0px"}} onChange={function noRefCheck(){}} placeholder="placeholder text" title="" titlewidth="70px" width="120px" spacing="50px"/ > */}
-                  <Textfield
-                    id="load-case-name"
-                    value={newLoadCaseName}
-                    onChange={(e) => setNewLoadCaseName(e.target.value)}
-                    // onChange={(e) => handleInputChangeDebounced(e.target.value)} // Debounced handler
-                    // onChange={(e) =>
-                    //   debouncedHandleInputChange(
-                    //     e.target.value,
-                    //     setNewLoadCaseName
-                    //   )
-                    // } // Debounced handler
-                    placeholder={
-                      selectedObject
-                        ? selectedObject.Name
-                        : "Enter load case name"
-                    }
-                    title=""
-                    titlewidth="70px"
-                    width="100px"
-                    spacing="50px"
-                  />
-                </div>
-                <br></br>
-                <div
-                  style={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <span style={{ fontSize: "14px", marginTop: "0px" }}>
-                    Target Element
-                  </span>
-                  <div
-                    style={{
-                      borderBottom: "1px solid gray",
-                      height: "16px",
-                      width: "100px",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    {/* <div style={{ fontSize: "12px", paddingBottom: "2px" }}>
-                      {elementArray.length > 1 ? (
-                        handleClick()
-                      ) : (
-                        <div>{firstSelectedElement}</div>
-                      )}
-                    </div> */}
-                    <div style={{ fontSize: "12px", paddingBottom: "2px" }}>
-                      {firstSelectedElement}
-                    </div>
-                  </div>
-                </div>
-                <br></br>
-                <div
-                  style={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <span style={{ fontSize: "14px" }}>Element</span>
-                  <RadioGroup
-                    margin={1}
-                    onChange={(e) => setSelectedPart(e.target.value)} // Update state variable based on user selection
-                    value={selectedPart} // Bind the state variable to the RadioGroup
-                    text=""
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "start",
-                        justifyContent: "space-between",
-                        marginRight: "5px",
-                        height: "20px",
-                        width: "70px",
-                      }}
-                    >
-                      <Radio
-                        name="i"
-                        value="I"
-                        label="Part I" // Optional: Add a label for clarity
-                        checked={selectedPart === "I"} // Check this Radio if the selectedPart is "i"
-                      />
-                      <Radio
-                        name="j"
-                        value="J"
-                        label="Part J" // Optional: Add a label for clarity
-                        checked={selectedPart === "J"} // Check this Radio if the selectedPart is "j"
-                      />
-                    </div>
-                  </RadioGroup>
-                </div>
-              </div>
-              <Separator />
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  margin: "10px",
-                  justifyContent: "space-between",
-                }}
+                style={{ display: "flex", justifyContent: "space-between" }}
               >
                 <span
                   style={{
                     fontSize: "14px",
-                    color: "gray",
+                    height: "24px",
+                    display: "inline-block",
+                    verticalAlign: "bottom",
+                    marginTop: "4px",
+                  }}
+                >
+                  LCB Title:
+                </span>
+                {/* <Textfield  id="my-textfield" defaultValue="" height={{height: "0px"}} onChange={function noRefCheck(){}} placeholder="placeholder text" title="" titlewidth="70px" width="120px" spacing="50px"/ > */}
+                <Textfield
+                  id="load-case-name"
+                  value={newLoadCaseName}
+                  onChange={(e) => setNewLoadCaseName(e.target.value)}
+                  placeholder={
+                    selectedObject
+                      ? selectedObject.Name
+                      : "Enter load case name"
+                  }
+                  title=""
+                  titlewidth="70px"
+                  width="100px"
+                  spacing="50px"
+                />
+              </div>
+              <br></br>
+              <div
+                style={{ display: "flex", justifyContent: "space-between" }}
+              >
+                <span style={{ fontSize: "14px", marginTop: "0px" }}>
+                  Target Element
+                </span>
+                <div
+                  style={{
+                    borderBottom: "1px solid gray",
+                    height: "16px",
+                    width: "100px",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontSize: "12px", paddingBottom: "2px" }}>
+                    {firstSelectedElement}
+                  </div>
+                </div>
+              </div>
+              {/* <br></br> */}
+              <div
+                style={{ display: "flex", justifyContent: "space-between" ,marginTop: "15px"}}
+              >
+                <span style={{ fontSize: "14px" }}>Element</span>
+                <RadioGroup
+                  margin={1}
+                  onChange={(e) => setSelectedPart(e.target.value)} // Update state variable based on user selection
+                  value={selectedPart} // Bind the state variable to the RadioGroup
+                  text=""
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "start",
+                      justifyContent: "space-between",
+                      marginRight: "5px",
+                      height: "20px",
+                      width: "70px",
+                    }}
+                  >
+                    <Radio
+                      name="i"
+                      value="I"
+                      label="Part I" // Optional: Add a label for clarity
+                      checked={selectedPart === "I"} // Check this Radio if the selectedPart is "i"
+                    />
+                    <Radio
+                      name="j"
+                      value="J"
+                      label="Part J" // Optional: Add a label for clarity
+                      checked={selectedPart === "J"} // Check this Radio if the selectedPart is "j"
+                    />
+                  </div>
+                </RadioGroup>
+              </div>
+              {/* <br></br> */}
+              <div
+                style={{ display: "flex", justifyContent: "space-between",marginTop: "15px"}}
+              >
+              <span style={{ fontSize: "14px" }}>Envelope Type</span>
+                <CheckGroup onChange={(e) => {
+            // Get the name of the clicked checkbox
+            const value = e.target.name;
+            
+            // Update selectedRange state based on the user's selection
+            if (value === "max") {
+                // Toggle the "max" selection
+                if (selectedRange === "max") {
+                    setSelectedRange(""); // Deselect "max"
+                } else if (selectedRange === "min") {
+                    setSelectedRange("both"); // Both "max" and "min" selected
+                } else {
+                    setSelectedRange("max"); // Select only "max"
+                }
+            } else if (value === "min") {
+                // Toggle the "min" selection
+                if (selectedRange === "min") {
+                    setSelectedRange(""); // Deselect "min"
+                } else if (selectedRange === "max") {
+                    setSelectedRange("both"); // Both "min" and "max" selected
+                } else {
+                    setSelectedRange("min"); // Select only "min"
+                }
+            }
+        }}
+        value={selectedRange} // Set the value prop to selectedRange state
+    >
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            {/* Use the name attribute to determine which checkbox was clicked */}
+            <Check name="max" label="Max" checked={selectedRange === "max" || selectedRange === "both"} />
+            <Check name="min" label="Min" checked={selectedRange === "min" || selectedRange === "both"} />
+        </div>
+    </CheckGroup>
+              </div>
+            </div>
+            <Separator />
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                margin: "10px",
+                justifyContent: "space-between",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "14px",
+                  color: "gray",
+                  marginBottom: "6px",
+                }}
+              >
+                Critical L.C from View by Max Value
+              </span>
+              <CheckGroup text="">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-around",
+                    flexWrap: "wrap",
+                    height: "fit-content",
+                    width: "100%",
+                    margin: "0",
                     marginBottom: "6px",
                   }}
                 >
-                  Critical L.C from View by Max Value
-                </span>
-                {/* <CheckGroup text="">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', height: 'fit-content', width: '100%', margin: '0', marginBottom: '6px' }}>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <Check
-            name="Fx"
-            width="100px"
-            height="30px"
-            checked={selectedForce === 'Fx'|| all==true}
-            onChange={() => setSelectedForce('Fx')}
-        />
-        <div style={{marginRight:"0.4px"}}>
-        <Check
-            name="Fy"
-            width="100px"
-            height="30px"
-            checked={selectedForce === 'Fy'|| all==true}
-            onChange={() => setSelectedForce('Fy')}
-        />
-        </div>
-        <div style={{marginRight: "4.2px"}}>
-        <Check
-            name="Fz"
-            height="30px"
-            checked={selectedForce === 'Fz'|| all==true}
-            onChange={() => setSelectedForce('Fz')}
-        />
-        </div>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '5px' }}>
-        <Check
-            name="Mx"
-            checked={selectedForce === 'Mx'|| all==true}
-            onChange={() => setSelectedForce('Mx')}
-        />
-        <Check
-            name="My"
-            checked={selectedForce === 'My'|| all==true}
-            onChange={() => setSelectedForce('My')}
-        />
-        <Check
-            name="Mz"
-            checked={selectedForce === 'Mz' || all==true}
-            onChange={() => setSelectedForce('Mz')}
-        />
-    </div>
-</div>
-
-        <div style={{ display:'flex', alignItems:"centre",justifyContent:"centre", width: '100%', height: '80px' ,marginLeft:"0px"}}>
-        <Button color="normal" onClick={()=>setAll(!all)} width="100%" variant="outlined" style={{ color: 'black'}}>
-          {all? `DeSelect All`:`Select All`}
-        </Button>
-        </div>
-      </CheckGroup> */}
-                <CheckGroup text="">
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "space-around",
-                      flexWrap: "wrap",
-                      height: "fit-content",
+                      justifyContent: "space-between",
                       width: "100%",
-                      margin: "0",
-                      marginBottom: "6px",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        width: "100%",
-                      }}
-                    >
-                      {/* Adjust each checkbox's "checked" attribute and "onChange" handler */}
+                    {/* Adjust each checkbox's "checked" attribute and "onChange" handler */}
+                    <Check
+                      name="Fx"
+                      width="100px"
+                      height="30px"
+                      checked={selectedCheckboxes.includes("Fx") || all}
+                      onChange={() => handleCheckboxChange("Fx")}
+                    />
+                    <div style={{ marginRight: "0.4px" }}>
                       <Check
-                        name="Fx"
+                        name="Fy"
                         width="100px"
                         height="30px"
-                        checked={selectedCheckboxes.includes("Fx") || all}
-                        onChange={() => handleCheckboxChange("Fx")}
+                        checked={selectedCheckboxes.includes("Fy") || all}
+                        onChange={() => handleCheckboxChange("Fy")}
                       />
-                      <div style={{ marginRight: "0.4px" }}>
-                        <Check
-                          name="Fy"
-                          width="100px"
-                          height="30px"
-                          checked={selectedCheckboxes.includes("Fy") || all}
-                          onChange={() => handleCheckboxChange("Fy")}
-                        />
-                      </div>
-                      <div style={{ marginRight: "4.2px" }}>
-                        <Check
-                          name="Fz"
-                          height="30px"
-                          checked={selectedCheckboxes.includes("Fz") || all}
-                          onChange={() => handleCheckboxChange("Fz")}
-                        />
-                      </div>
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        width: "100%",
-                        marginBottom: "5px",
-                      }}
-                    >
+                    <div style={{ marginRight: "4.2px" }}>
                       <Check
-                        name="Mx"
-                        checked={selectedCheckboxes.includes("Mx") || all}
-                        onChange={() => handleCheckboxChange("Mx")}
-                      />
-                      <Check
-                        name="My"
-                        checked={selectedCheckboxes.includes("My") || all}
-                        onChange={() => handleCheckboxChange("My")}
-                      />
-                      <Check
-                        name="Mz"
-                        checked={selectedCheckboxes.includes("Mz") || all}
-                        onChange={() => handleCheckboxChange("Mz")}
+                        name="Fz"
+                        height="30px"
+                        checked={selectedCheckboxes.includes("Fz") || all}
+                        onChange={() => handleCheckboxChange("Fz")}
                       />
                     </div>
                   </div>
@@ -1130,50 +1039,77 @@ function App() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
+                      justifyContent: "space-between",
                       width: "100%",
-                      height: "20px",
-                      marginLeft: "0px",
+                      marginBottom: "5px",
                     }}
                   >
-                    <Button
-                      color="normal"
-                      onClick={handleSelectAll}
-                      width="100%"
-                      variant="outlined"
-                      style={{ color: "black" }}
-                    >
-                      {all ? "Deselect All" : "Select All"}
-                    </Button>
+                    <Check
+                      name="Mx"
+                      checked={selectedCheckboxes.includes("Mx") || all}
+                      onChange={() => handleCheckboxChange("Mx")}
+                    />
+                    <Check
+                      name="My"
+                      checked={selectedCheckboxes.includes("My") || all}
+                      onChange={() => handleCheckboxChange("My")}
+                    />
+                    <Check
+                      name="Mz"
+                      checked={selectedCheckboxes.includes("Mz") || all}
+                      onChange={() => handleCheckboxChange("Mz")}
+                    />
                   </div>
-                </CheckGroup>
-              </div>
-            </Panel>
-          </div>
-          <br></br>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              margin: "0px",
-              marginTop: "0",
-              marginBottom: "30px",
-            }}
-          >
-            {Buttons.NormalButton(
-              "contained",
-              "Import Load Combinations",
-              // fetchData
-              importLoadCombinations
-            )}
-            {Buttons.MainButton("contained", "Breakdown", () =>
-              BreakdownData(selectedCheckboxes)
-            )}
-          </div>
-        </Panel>
-      </GuideBox>
-    </div>
-  );
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "100%",
+                    height: "20px",
+                    marginLeft: "0px",
+                  }}
+                >
+                  <Button
+                    color="normal"
+                    onClick={handleSelectAll}
+                    width="100%"
+                    variant="outlined"
+                    style={{ color: "black" }}
+                  >
+                    {all ? "Deselect All" : "Select All"}
+                  </Button>
+                </div>
+              </CheckGroup>
+            </div>
+          </Panel>
+        </div>
+        {/* <br></br> */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            margin: "0px",
+            marginTop: "10px",
+            marginBottom: "30px",
+          }}
+        >
+          {Buttons.NormalButton(
+            "contained",
+            "Import Load Combinations",
+            // fetchData
+            importLoadCombinations
+          )}
+          {Buttons.MainButton("contained", "Breakdown", () =>
+            BreakdownData(selectedCheckboxes, selectedRange)
+          )}
+        </div>
+      </Panel>
+    </GuideBox>
+  </div>
+);
+
 }
 
 function AppWithSnackbar() {
@@ -1182,9 +1118,5 @@ function AppWithSnackbar() {
       <App />
     </SnackbarProvider>
   );
-}
-
-{
-  /* export default AppWithSnackbar; */
 }
 export default AppWithSnackbar;
