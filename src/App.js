@@ -7,7 +7,7 @@ import { midasAPI } from "./Function/Common";
 import { VerifyUtil, VerifyDialog } from "@midasit-dev/moaui";
 import Textfield from "@midasit-dev/moaui/Components/TextField";
 import { CheckGroup, Check } from "@midasit-dev/moaui";
-import { Button } from "@midasit-dev/moaui";
+import { Button} from "@midasit-dev/moaui";
 import { Radio, RadioGroup } from "@midasit-dev/moaui";
 import { useEffect } from "react";
 import { useState } from "react";
@@ -32,9 +32,8 @@ function App() {
   const [newLoadCaseName, setNewLoadCaseName] = useState("");
   const [selectedObject, setSelectedObject] = useState(null);
   const [selectedPart, setSelectedPart] = useState("i"); // Default to "i" or set initial value as needed
-  const [selectedForce, setSelectedForce] = useState(null);
   let successfulEndpoint = null;
-  const [selectedRange, setSelectedRange] = useState('');
+  const [selectedRange, setSelectedRange] = useState("");
 
   const handleCheckboxChange = (name) => {
     if (selectedCheckboxes.includes(name)) {
@@ -59,6 +58,33 @@ function App() {
     setAll(!all);
   };
 
+  const handleRangeChange = (e) => {
+    const value = e.target.name;
+
+    // Update `selectedRange` based on the user's selection
+    if (selectedRange.includes(value)) {
+      // If the value is already in the array, remove it
+      setSelectedRange(selectedRange.filter((range) => range !== value));
+    } else {
+      // If the value is not in the array, add it
+      setSelectedRange([...selectedRange, value]);
+    }
+  };
+
+  function getAdjustedLCName(lcname, loadCombinations,name) {
+    // Find the entry in loadCombinations with the given LCNAME
+    const combinationEntry = Object.values(loadCombinations).find(
+        (combination) => combination.NAME === lcname
+    );
+
+    // If the entry exists and its iTYPE is 1, adjust the lcname by appending "_name"
+    if (combinationEntry && combinationEntry.iTYPE === 1) {
+        lcname += `(${name})`;
+    }
+
+    // Return the adjusted or original lcname
+    return lcname;
+}
 
   async function searchLoadCombination(
     factor,
@@ -68,144 +94,276 @@ function App() {
     loadCombinations,
     selectedObject,
     beamforces,
-    userSelection
-  ) {
+    userSelection,
+    name // Added name parameter
+) {
     // Map user selection to the corresponding index in force data
     const forceIndexMapping = {
-      Fx: 4,
-      Fy: 5,
-      Fz: 6,
-      Mx: 7,
-      My: 8,
-      Mz: 9,
+        Fx: 4,
+        Fy: 5,
+        Fz: 6,
+        Mx: 7,
+        My: 8,
+        Mz: 9,
     };
     const selectedForceIndex = forceIndexMapping[userSelection];
-
-    // Check if selectedObject.iTYPE is 1
-    if (selectedObject.iTYPE === 1) {
-      // Variables to track the maximum force value and corresponding factor
-      let maxForceValue = Number.NEGATIVE_INFINITY;
-      let maxVcombObj = null; // This will hold the vCOMB object with the maximum force value
-      let maxCorrespondingFactor = 0; // This will hold the factor for the maximum force value
-
-      // Iterate through each vCOMB object in the vcombArray
+    if (selectedObject.iTYPE === 0) {
+      // If iTYPE is 0, iterate through each vcombObj in vcombArray
       for (const vcombObj of vcombArray) {
-        // Extract the LCNAME from the vCOMB object
-        const lcname = vcombObj.LCNAME;
+          let lcname = vcombObj.LCNAME;
 
-        // Filter `beamforces.DATA` to find entries that match the current LCNAME (`lcname`)
-        const filteredForces = beamforces.BeamForce.DATA.filter(
-          (force) => force[2] === lcname
-        );
-
-        // Calculate the maximum selected force value and its corresponding factor
-        for (const forceData of filteredForces) {
-          // Calculate the selected force value
-          const selectedForceValue = Math.abs(
-            forceData[selectedForceIndex] * factor
-          );
-
-          // Update maxForceValue and correspondingFactor if necessary
-          if (selectedForceValue > maxForceValue) {
-            maxForceValue = selectedForceValue;
-            maxVcombObj = vcombObj; // Update the maximum vCOMB object
-            maxCorrespondingFactor = factor * vcombObj.FACTOR; // Update the corresponding factor
-          }
-        }
-      }
-
-      // Handle the maximum vCOMB object found
-      if (maxVcombObj) {
-        // Check if LCNAME is present in loadNames
-        if (loadNames.includes(maxVcombObj.LCNAME)) {
-          // Update newVCOMB array
-          const existingVCOMBIndex = newVCOMB.findIndex(
-            (item) => item.LCNAME === maxVcombObj.LCNAME
-          );
-          if (existingVCOMBIndex !== -1) {
-            // Update the factor for the existing entry
-            newVCOMB[existingVCOMBIndex].FACTOR += maxCorrespondingFactor;
+          // Check if lcname is present in loadNames
+          if (loadNames.includes(lcname)) {
+              // If LCNAME is present in loadNames, push it into newVCOMB with proper factor
+              const existingVCOMBIndex = newVCOMB.findIndex(item => item.LCNAME === lcname);
+              if (existingVCOMBIndex !== -1) {
+                  // Update the factor for the existing entry
+                  newVCOMB[existingVCOMBIndex].FACTOR += factor * vcombObj.FACTOR;
+              } else {
+                  // Add a new entry to newVCOMB
+                  newVCOMB.push({
+                      ANAL: vcombObj.ANAL,
+                      LCNAME: lcname,
+                      FACTOR: factor * vcombObj.FACTOR,
+                  });
+              }
           } else {
-            // Add a new entry to newVCOMB
-            newVCOMB.push({
-              ANAL: maxVcombObj.ANAL,
-              LCNAME: maxVcombObj.LCNAME,
-              FACTOR: maxCorrespondingFactor,
-            });
-          }
-        } else {
-          // Search for lcname in loadCombinations and handle accordingly
-          for (const loadCombination of Object.values(loadCombinations)) {
-            if (loadCombination.NAME === maxVcombObj.LCNAME) {
-              // If a match is found, call searchLoadCombination recursively
-              const newSelectedObject = loadCombination;
-              await searchLoadCombination(
-                maxCorrespondingFactor,
-                loadCombination.vCOMB,
-                newVCOMB,
-                loadNames,
-                loadCombinations,
-                newSelectedObject,
-                beamforces,
-                userSelection
-              );
-              break; // Exit the loop after finding the match
+            let foundLoadCombination = null;
+
+            // Iterate through each loadCombination in the loadCombinations object
+            for (const loadCombinationKey in loadCombinations) {
+                const loadCombination = loadCombinations[loadCombinationKey];
+                
+                // Check if the LCNAME matches the current loadCombination's NAME
+                if (loadCombination.NAME === lcname) {
+                    // If found, retrieve the corresponding vCOMB list
+                    foundLoadCombination = loadCombination;
+                    foundLoadCombination.VCOMB = loadCombination.vCOMB
+                    break; // Break the loop as we found the matching LCNAME
+                }
             }
+        
+            // If foundVCOMB is not null, call searchLoadCombination recursively with foundVCOMB
+            if (foundLoadCombination) {
+                await searchLoadCombination(
+                    factor * vcombObj.FACTOR,
+                    foundLoadCombination.VCOMB, // Pass the found vCOMB list
+                    newVCOMB,
+                    loadNames,
+                    loadCombinations,
+                    foundLoadCombination,
+                    beamforces,
+                    userSelection,
+                    name
+                );
           }
-        }
-      }
-    } else {
-      // If selectedObject.iTYPE is not 1, handle existing code
-      for (const vcombObj of vcombArray) {
-        // Check if vCOMB.LCNAME is present in loadNames array
-        if (loadNames.includes(vcombObj.LCNAME)) {
-          // Handle the existing code logic
-          const existingVCOMBIndex = newVCOMB.findIndex(
-            (item) => item.LCNAME === vcombObj.LCNAME
-          );
-          if (existingVCOMBIndex !== -1) {
-            // Update factor for existing entry
-            newVCOMB[existingVCOMBIndex].FACTOR += factor * vcombObj.FACTOR;
-          } else {
-            // Add new entry to newVCOMB
-            newVCOMB.push({
-              ANAL: vcombObj.ANAL,
-              LCNAME: vcombObj.LCNAME,
-              FACTOR: factor * vcombObj.FACTOR,
-            });
-          }
-        } else {
-          // Handle loadCombinations search
-          for (const loadCombination of Object.values(loadCombinations)) {
-            if (loadCombination.NAME === vcombObj.LCNAME) {
-              // Call searchLoadCombination recursively
-              const newSelectedObject_add = loadCombination;
-              await searchLoadCombination(
-                factor * vcombObj.FACTOR,
-                loadCombination.vCOMB,
-                newVCOMB,
-                loadNames,
-                loadCombinations,
-                newSelectedObject_add,
-                beamforces,
-                userSelection
-              );
-            }
-          }
-        }
       }
     }
+      return newVCOMB; // Return the updated newVCOMB array
+  
+}
+  else {
+
+    // Variables to track the maximum and minimum force values and corresponding factors
+    let maxForceValue = Number.NEGATIVE_INFINITY;
+    let minForceValue = Number.POSITIVE_INFINITY;
+    let maxVcombObj = null; // This will hold the vCOMB object with the maximum force value
+    let minVcombObj = null; // This will hold the vCOMB object with the minimum force value
+    let maxCorrespondingFactor = 0; // This will hold the factor for the maximum force value
+    let minCorrespondingFactor = 0; // This will hold the factor for the minimum force value
+
+    // Iterate through each vCOMB object in the vcombArray
+    for (const vcombObj of vcombArray) {
+        // Extract the LCNAME from the vCOMB object
+        let lcname = vcombObj.LCNAME;
+
+        // Adjust the lcname based on its corresponding entry's iTYPE in loadCombinations
+        lcname = getAdjustedLCName(lcname, loadCombinations, name); // Updated to pass name parameter
+
+        // Filter `beamforces.DATA` to find entries that match the adjusted LCNAME (`lcname`)
+        const filteredForces = beamforces.BeamForce.DATA.filter(
+            (force) => force[2] === lcname
+        );
+
+        // Calculate the selected force value and its corresponding factor
+        for (const forceData of filteredForces) {
+            // Calculate the selected force value
+            let selectedForceValue = forceData[selectedForceIndex] * vcombObj.FACTOR;
+
+            // Check the maximum and minimum force values based on the `name` parameter
+            if (name === "max") {
+                // Update maxForceValue and maxCorrespondingFactor if necessary
+                if (selectedForceValue > maxForceValue) {
+                    maxForceValue = selectedForceValue;
+                    maxVcombObj = vcombObj; // Update the maximum vCOMB object
+                    maxCorrespondingFactor = factor * vcombObj.FACTOR; // Update the corresponding factor
+                }
+            } else if (name === "min") {
+                // Update minForceValue and minCorrespondingFactor if necessary
+                if (selectedForceValue < minForceValue) {
+                    minForceValue = selectedForceValue;
+                    minVcombObj = vcombObj; // Update the minimum vCOMB object
+                    minCorrespondingFactor = factor * vcombObj.FACTOR; // Update the corresponding factor
+                }
+            }
+        }
+    }
+
+    // Handle the maximum and minimum vCOMB objects found
+    if (name === "max" && maxVcombObj) {
+        // Check if LCNAME is present in loadNames
+        if (loadNames.includes(maxVcombObj.LCNAME)) {
+            // Update newVCOMB array
+            const existingVCOMBIndex = newVCOMB.findIndex(
+                (item) => item.LCNAME === maxVcombObj.LCNAME
+            );
+            if (existingVCOMBIndex !== -1) {
+                // Update the factor for the existing entry
+                newVCOMB[existingVCOMBIndex].FACTOR += maxCorrespondingFactor;
+            } else {
+                // Add a new entry to newVCOMB
+                newVCOMB.push({
+                    ANAL: maxVcombObj.ANAL,
+                    LCNAME: maxVcombObj.LCNAME,
+                    FACTOR: maxCorrespondingFactor,
+                });
+            }
+        } else {
+            // Search for lcname in loadCombinations and handle accordingly
+            for (const loadCombination of Object.values(loadCombinations)) {
+                    
+                    if (name === "max" && loadCombination.NAME === maxVcombObj.LCNAME) {
+                      // Check if all vcombObj objects inside the load combination are present in loadNames
+                      const allLCNamesPresentInCombination = loadCombination.vCOMB.every(
+                          (vcombObj) => loadNames.includes(vcombObj.LCNAME)
+                      );
+          
+                      // If all LCNAME values are present in loadNames, return the complete maxVcombObj
+                      if (allLCNamesPresentInCombination) {
+                          let targetLoadCombination = null;
+                          for (const loadCombinationKey in loadCombinations) {
+                          const currentLoadCombination = loadCombinations[loadCombinationKey];
+                         // Check if the LCNAME matches the current loadCombination's NAME
+                           if (currentLoadCombination.NAME === maxVcombObj.LCNAME) {
+                           targetLoadCombination = currentLoadCombination;
+                            break; // Exit the loop as we found the matching LCNAME
+                           }
+                        }
+
+                        // If targetLoadCombination is not null, iterate through its vCOMB list
+                        if (targetLoadCombination) {
+                             for (const vcomb of targetLoadCombination.vCOMB) {
+                          newVCOMB.push({
+                             ANAL: vcomb.ANAL,
+                             LCNAME: vcomb.LCNAME,
+                             FACTOR: vcomb.FACTOR * maxCorrespondingFactor
+                          });
+                     }
+                         
+                          return newVCOMB; // Return from the function
+                      } 
+                    }else {
+                          // If not all LCNAME values are present, proceed with recursive call
+                          const newSelectedObject = loadCombination;
+                          await searchLoadCombination(
+                              maxCorrespondingFactor,
+                              loadCombination.vCOMB,
+                              newVCOMB,
+                              loadNames,
+                              loadCombinations,
+                              newSelectedObject,
+                              beamforces,
+                              userSelection,
+                              name // Pass name parameter
+                          );
+                          break; // Exit the loop after finding the match
+                      } // Exit the loop after finding the match
+                }
+            }
+        }
+    } else if (name === "min" && minVcombObj) {
+      if (loadNames.includes(minVcombObj.LCNAME)) {
+          // Update newVCOMB array
+          const existingVCOMBIndex = newVCOMB.findIndex(
+              (item) => item.LCNAME === minVcombObj.LCNAME
+          );
+          if (existingVCOMBIndex !== -1) {
+              // Update the factor for the existing entry
+              newVCOMB[existingVCOMBIndex].FACTOR += minCorrespondingFactor;
+          } else {
+              // Add a new entry to newVCOMB
+              newVCOMB.push({
+                  ANAL: minVcombObj.ANAL,
+                  LCNAME: minVcombObj.LCNAME,
+                  FACTOR: minCorrespondingFactor,
+              });
+          }
+      } else {
+          // Search for lcname in loadCombinations and handle accordingly
+          for (const loadCombination of Object.values(loadCombinations)) {
+              if (loadCombination.NAME === minVcombObj.LCNAME) {
+                  // Check if all vcombObj inside the load combination are present in loadNames
+                  const allLCNamesPresentInCombination = loadCombination.vCOMB.every(
+                      (vcombObj) => loadNames.includes(vcombObj.LCNAME)
+                  );
+  
+                  // If all LCNAME values are present in loadNames, return the complete minVcombObj
+                  if (allLCNamesPresentInCombination) {
+                       let targetLoadCombination = null;
+                      for (const loadCombinationKey in loadCombinations) {
+                          const currentLoadCombination = loadCombinations[loadCombinationKey];
+                          
+                          // Check if the LCNAME matches the current loadCombination's NAME
+                          if (currentLoadCombination.NAME === minVcombObj.LCNAME) {
+                              targetLoadCombination = currentLoadCombination;
+                              break; // Exit the loop as we found the matching LCNAME
+                          }
+                      }
+              
+                      // If targetLoadCombination is not null, iterate through its vCOMB list
+                      if (targetLoadCombination) {
+                          for (const vcomb of targetLoadCombination.vCOMB) {
+                              newVCOMB.push({
+                                  ANAL: vcomb.ANAL,
+                                  LCNAME: vcomb.LCNAME,
+                                  FACTOR: vcomb.FACTOR * minCorrespondingFactor
+                              });
+                          }
+                      return newVCOMB;
+                  } 
+                }else {
+                      // If not all LCNAME values are present, proceed with recursive call
+                      const newSelectedObject = loadCombination;
+                      await searchLoadCombination(
+                          minCorrespondingFactor,
+                          loadCombination.vCOMB,
+                          newVCOMB,
+                          loadNames,
+                          loadCombinations,
+                          newSelectedObject,
+                          beamforces,
+                          userSelection,
+                          name
+                      );
+                      break; // Exit the loop after finding the match
+                  }
+              }
+          }
+  }
 
     // Return the modified newVCOMB array
     return newVCOMB;
-  }
+}
+}
+}
 
   async function add_envelope(
     selectedObject,
     loadNames,
     loadCombinations,
     selectedForce,
-    beamforces
+    beamforces,
+    name
   ) {
     // Check if all LCNAME values in the selectedObject's vCOMB are present in loadNames
     const allLCNamesPresent = selectedObject.vCOMB.every((item) =>
@@ -281,7 +439,8 @@ function App() {
         loadCombinations,
         selectedObject,
         beamforces,
-        selectedForce
+        selectedForce,
+        name
       );
       console.log(newVCOMB);
       // Combine newLoadCaseNameValue and selectedForce in the desired manner
@@ -508,41 +667,46 @@ function App() {
       let newLoadCombinations = { ...LoadCombinations };
 
       // Check if all `vCOMB` objects' `LCNAME` values in `selectedObject` are present in `loadNames`
-        // before starting the loop
-        const selectedComb = combArray.find(item => item.NAME === selectedRadio);
-        const allLCNamesPresent = selectedComb.vCOMB.every((vcombObj) => loadNames.includes(vcombObj.LCNAME));
+      // before starting the loop
+      const selectedComb = combArray.find(
+        (item) => item.NAME === selectedRadio
+      );
+      const allLCNamesPresent = selectedComb.vCOMB.every((vcombObj) =>
+        loadNames.includes(vcombObj.LCNAME)
+      );
 
-        // If all LCNAME values are present, update selectedObject.NAME to newLoadCaseName and add it to newLoadCombinations
-        if (allLCNamesPresent) {
-           const newCombination = { ...selectedComb, NAME: newLoadCaseName };
-            // Add the new combination to newLoadCombinations at the key lastKey + 1
-           newLoadCombinations[lastKey + 1] = newCombination;
+      // If all LCNAME values are present, update selectedObject.NAME to newLoadCaseName and add it to newLoadCombinations
+      if (allLCNamesPresent) {
+        const newCombination = { ...selectedComb, NAME: newLoadCaseName };
+        // Add the new combination to newLoadCombinations at the key lastKey + 1
+        newLoadCombinations[lastKey + 1] = newCombination;
 
-            // Send the newLoadCombinations object to the midasAPI
-            const response = await midasAPI("PUT", `${successfulEndpoint}`, { Assign: newLoadCombinations });
+        // Send the newLoadCombinations object to the midasAPI
+        const response = await midasAPI("PUT", `${successfulEndpoint}`, {
+          Assign: newLoadCombinations,
+        });
 
-            // Provide feedback based on the response
-            if (response) {
-                enqueueSnackbar("Data successfully entered", {
-                    variant: "success",
-                    anchorOrigin: {
-                        vertical: "top",
-                        horizontal: "center",
-                    },
-                });
-            } else {
-                enqueueSnackbar("Error updating data", {
-                    variant: "error",
-                    anchorOrigin: {
-                        vertical: "top",
-                        horizontal: "center",
-                    },
-                });
-            }
-            // Break from the function as the condition is met
-            return;
+        // Provide feedback based on the response
+        if (response) {
+          enqueueSnackbar("Data successfully entered", {
+            variant: "success",
+            anchorOrigin: {
+              vertical: "top",
+              horizontal: "center",
+            },
+          });
+        } else {
+          enqueueSnackbar("Error updating data", {
+            variant: "error",
+            anchorOrigin: {
+              vertical: "top",
+              horizontal: "center",
+            },
+          });
         }
-
+        // Break from the function as the condition is met
+        return;
+      }
 
       // Define the different load combination sets
       const loadCombinationSets = [
@@ -555,104 +719,105 @@ function App() {
 
       for (const { name, loadCombinationNames } of loadCombinationSets) {
         console.log(`Processing ${name} load combinations`);
-        if (selectedRange === name || selectedRange === "both") {
+        if (selectedRange.includes(name)){
           console.log(`Processing ${name} load combinations`);
 
-        let iterationOffset = 0 + a;
+          let iterationOffset = 0 + a;
 
-        for (const selectedForce of selectedForces) {
-          const updatedArgument = {
-            ...inputObject.Argument,
-            LOAD_CASE_NAMES: loadCombinationNames.map((name) => `${name}`),
-          };
-
-          console.log(updatedArgument);
-
-          // Call the API to get forces for each selected force
-          const forces = await midasAPI("POST", "/post/table", {
-            Argument: updatedArgument,
-          });
-
-          console.log(
-            `Beam forces for ${selectedForce} with ${name} load combinations:`,
-            forces
-          );
-
-          iterationOffset += 1;
-
-          // Find the selected combination
-          const selectedComb = combArray.find(
-            (item) => item.NAME === selectedRadio
-          );
-          console.log(
-            `Selected combination for ${selectedForce} with ${name} load combinations:`,
-            selectedComb
-          );
-
-          if (!selectedComb) {
-            console.log(
-              `Error: No selected combination found for ${selectedForce} with ${name} load combinations.`
-            );
-            continue;
-          }
-
-          console.log(
-            `iTYPE of selected combination for ${selectedForce} with ${name} load combinations:`,
-            selectedComb.iTYPE
-          );
-
-          // Process the selected force separately
-          let updatedObject = null;
-          if (selectedComb.iTYPE === 0 || selectedComb.iTYPE === 1) {
-            // Call the add_envelope function to process the combination
-            updatedObject = await add_envelope(
-              selectedComb,
-              loadNames,
-              loadCombinations,
-              selectedForce,
-              forces
-            );
-          }
-
-          if (updatedObject) {
-            const newLoadCombinationID = lastKey + iterationOffset;
-            console.log(`New Load Combination ID: ${newLoadCombinationID}`);
-
-            // Update properties of the updated object
-            updatedObject.iTYPE = 0;
-            updatedObject.NAME = `${updatedObject.NAME}_${name}`;
-
-            // Create a payload object with the Assign property
-            const payload = {
-              Assign: updatedObject,
+          for (const selectedForce of selectedForces) {
+            const updatedArgument = {
+              ...inputObject.Argument,
+              LOAD_CASE_NAMES: loadCombinationNames.map((name) => `${name}`),
             };
 
-            // Add the payload object to the newLoadCombinations object
-            newLoadCombinations[newLoadCombinationID] = payload.Assign;
+            console.log(updatedArgument);
+
+            // Call the API to get forces for each selected force
+            const forces = await midasAPI("POST", "/post/table", {
+              Argument: updatedArgument,
+            });
 
             console.log(
-              `Updating object for force ${selectedForce} with ${name} load combinations:`,
-              updatedObject
+              `Beam forces for ${selectedForce} with ${name} load combinations:`,
+              forces
             );
 
-            // Add to newLoadCombinations object
-            //newLoadCombinations[newLoadCombinationID] = payload.Assign;
+            iterationOffset += 1;
+
+            // Find the selected combination
+            const selectedComb = combArray.find(
+              (item) => item.NAME === selectedRadio
+            );
+            console.log(
+              `Selected combination for ${selectedForce} with ${name} load combinations:`,
+              selectedComb
+            );
+
+            if (!selectedComb) {
+              console.log(
+                `Error: No selected combination found for ${selectedForce} with ${name} load combinations.`
+              );
+              continue;
+            }
 
             console.log(
-              `Updated object for force ${selectedForce} with ${name} load combinations:`,
-              updatedObject
+              `iTYPE of selected combination for ${selectedForce} with ${name} load combinations:`,
+              selectedComb.iTYPE
             );
-          } else {
-            console.log(
-              `Error: Updated object is null for force ${selectedForce} with ${name} load combinations.`
-            );
+
+            // Process the selected force separately
+            let updatedObject = null;
+            if (selectedComb.iTYPE === 0 || selectedComb.iTYPE === 1) {
+              // Call the add_envelope function to process the combination
+              updatedObject = await add_envelope(
+                selectedComb,
+                loadNames,
+                loadCombinations,
+                selectedForce,
+                forces,
+                name
+              );
+            }
+
+            if (updatedObject) {
+              const newLoadCombinationID = lastKey + iterationOffset;
+              console.log(`New Load Combination ID: ${newLoadCombinationID}`);
+
+              // Update properties of the updated object
+              updatedObject.iTYPE = 0;
+              updatedObject.NAME = `${updatedObject.NAME}_${name}`;
+
+              // Create a payload object with the Assign property
+              const payload = {
+                Assign: updatedObject,
+              };
+
+              // Add the payload object to the newLoadCombinations object
+              newLoadCombinations[newLoadCombinationID] = payload.Assign;
+
+              console.log(
+                `Updating object for force ${selectedForce} with ${name} load combinations:`,
+                updatedObject
+              );
+
+              // Add to newLoadCombinations object
+              //newLoadCombinations[newLoadCombinationID] = payload.Assign;
+
+              console.log(
+                `Updated object for force ${selectedForce} with ${name} load combinations:`,
+                updatedObject
+              );
+            } else {
+              console.log(
+                `Error: Updated object is null for force ${selectedForce} with ${name} load combinations.`
+              );
+            }
+
+            // Update iterationOffset
+            a = iterationOffset;
           }
-
-          // Update iterationOffset
-          a = iterationOffset;
         }
       }
-    }
       // Once all iterations are complete, send the newLoadCombinations object to the midasAPI
       const response = await midasAPI("PUT", `${successfulEndpoint}`, {
         Assign: newLoadCombinations,
@@ -740,7 +905,6 @@ function App() {
     }
   }
 
-
   async function fetchData() {
     try {
       // let resLoadCombinations = null;
@@ -799,239 +963,260 @@ function App() {
   // const { enqueueSnackbar } = useSnackbar();
   const combArray = Object.values(comb);
   const elementArray = Object.values(elem);
-  console.log(elementArray);
+  // console.log(elementArray);
 
-return (
-  <div className="App">
-    {/* {showDialog && <MKeyDialog />} */}
-    {showDialog && <VerifyDialog />}
-    <GuideBox padding={2} center>
-      <Panel width={520} height={400} variant="shadow2">
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <Panel width={255} height={330} marginX={1} marginTop={2}>
-            <div
-              style={{
-                color: "gray",
-                fontSize: "14px",
-                marginBottom: "10px",
-              }}
-            >
-              Select Load Combination
-            </div>
-            {/* Added wrapping div with overflow-y: auto for scrollbar */}
-            <div style={{ overflowY: "auto", maxHeight: "280px" }}>
-              <RadioGroup onChange={(e) => setSelectedRadio(e.target.value)}>
-                {combArray.map((c) => (
-                  <Radio key={c.NAME} name={c.NAME} value={c.NAME} />
-                ))}
-              </RadioGroup>
-            </div>
-          </Panel>
-
-          <Panel width={255} height={330} marginTop={2} padding={0.25}>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                margin: "10px",
-                justifyContent: "space-between",
-              }}
-            >
-              <span style={{ fontSize: "14px", color: "gray" }}>
-                Options for Breakdown
-              </span>
-              <br></br>
+  return (
+    <div className="App">
+      {/* {showDialog && <MKeyDialog />} */}
+      {showDialog && <VerifyDialog />}
+      <GuideBox padding={2} center>
+        <Panel width={520} height={400} variant="shadow2">
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Panel width={255} height={330} marginX={1} marginTop={2}>
               <div
-                style={{ display: "flex", justifyContent: "space-between" }}
+                style={{
+                  color: "gray",
+                  fontSize: "14px",
+                  marginBottom: "10px",
+                }}
+              >
+                Select Load Combination
+              </div>
+              {/* Added wrapping div with overflow-y: auto for scrollbar */}
+              <div style={{ overflowY: "auto", maxHeight: "280px" }}>
+                <RadioGroup onChange={(e) => setSelectedRadio(e.target.value)}>
+                  {combArray.map((c) => (
+                    <Radio key={c.NAME} name={c.NAME} value={c.NAME} />
+                  ))}
+                </RadioGroup>
+              </div>
+            </Panel>
+
+            <Panel width={255} height={330} marginTop={2} padding={0.25}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  margin: "10px",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span style={{ fontSize: "14px", color: "gray" }}>
+                  Options for Breakdown
+                </span>
+                <br></br>
+                <div
+                  style={{ display: "flex", justifyContent: "space-between" }}
+                >
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      height: "24px",
+                      display: "inline-block",
+                      verticalAlign: "bottom",
+                      marginTop: "4px",
+                    }}
+                  >
+                    LCB Title:
+                  </span>
+                  {/* <Textfield  id="my-textfield" defaultValue="" height={{height: "0px"}} onChange={function noRefCheck(){}} placeholder="placeholder text" title="" titlewidth="70px" width="120px" spacing="50px"/ > */}
+                  <Textfield
+                    id="load-case-name"
+                    value={newLoadCaseName}
+                    onChange={(e) => setNewLoadCaseName(e.target.value)}
+                    placeholder={
+                      selectedObject
+                        ? selectedObject.Name
+                        : "Enter load case name"
+                    }
+                    title=""
+                    titlewidth="70px"
+                    width="100px"
+                    spacing="50px"
+                  />
+                </div>
+                <br></br>
+                <div
+                  style={{ display: "flex", justifyContent: "space-between" }}
+                >
+                  <span style={{ fontSize: "14px", marginTop: "0px" }}>
+                    Target Element
+                  </span>
+                  <div
+                    style={{
+                      borderBottom: "1px solid gray",
+                      height: "16px",
+                      width: "100px",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", paddingBottom: "2px" }}>
+                      {firstSelectedElement}
+                    </div>
+                  </div>
+                </div>
+                {/* <br></br> */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: "15px",
+                  }}
+                >
+                  <span style={{ fontSize: "14px" }}>Element</span>
+                  <RadioGroup
+                    margin={1}
+                    onChange={(e) => setSelectedPart(e.target.value)} // Update state variable based on user selection
+                    value={selectedPart} // Bind the state variable to the RadioGroup
+                    text=""
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "start",
+                        justifyContent: "space-between",
+                        marginRight: "5px",
+                        height: "20px",
+                        width: "70px",
+                      }}
+                    >
+                      <Radio
+                        name="i"
+                        value="I"
+                        label="Part I" // Optional: Add a label for clarity
+                        checked={selectedPart === "I"} // Check this Radio if the selectedPart is "i"
+                      />
+                      <Radio
+                        name="j"
+                        value="J"
+                        label="Part J" // Optional: Add a label for clarity
+                        checked={selectedPart === "J"} // Check this Radio if the selectedPart is "j"
+                      />
+                    </div>
+                  </RadioGroup>
+                </div>
+                {/* <br></br> */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: "15px",
+                  }}
+                >
+                  <span style={{ fontSize: "14px" }}>Envelope Type</span>
+                  <CheckGroup onChange={handleRangeChange}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      {/* Use the name attribute to determine which checkbox was clicked */}
+                      <Check
+                        name="max"
+                        label="Max"
+                        checked={selectedRange.includes("max")}
+                      />
+                      <Check
+                        name="min"
+                        label="Min"
+                        checked={selectedRange.includes("min")}
+                      />
+                    </div>
+                  </CheckGroup>
+                </div>
+              </div>
+              <Separator />
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  margin: "10px",
+                  justifyContent: "space-between",
+                }}
               >
                 <span
                   style={{
                     fontSize: "14px",
-                    height: "24px",
-                    display: "inline-block",
-                    verticalAlign: "bottom",
-                    marginTop: "4px",
-                  }}
-                >
-                  LCB Title:
-                </span>
-                {/* <Textfield  id="my-textfield" defaultValue="" height={{height: "0px"}} onChange={function noRefCheck(){}} placeholder="placeholder text" title="" titlewidth="70px" width="120px" spacing="50px"/ > */}
-                <Textfield
-                  id="load-case-name"
-                  value={newLoadCaseName}
-                  onChange={(e) => setNewLoadCaseName(e.target.value)}
-                  placeholder={
-                    selectedObject
-                      ? selectedObject.Name
-                      : "Enter load case name"
-                  }
-                  title=""
-                  titlewidth="70px"
-                  width="100px"
-                  spacing="50px"
-                />
-              </div>
-              <br></br>
-              <div
-                style={{ display: "flex", justifyContent: "space-between" }}
-              >
-                <span style={{ fontSize: "14px", marginTop: "0px" }}>
-                  Target Element
-                </span>
-                <div
-                  style={{
-                    borderBottom: "1px solid gray",
-                    height: "16px",
-                    width: "100px",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <div style={{ fontSize: "12px", paddingBottom: "2px" }}>
-                    {firstSelectedElement}
-                  </div>
-                </div>
-              </div>
-              {/* <br></br> */}
-              <div
-                style={{ display: "flex", justifyContent: "space-between" ,marginTop: "15px"}}
-              >
-                <span style={{ fontSize: "14px" }}>Element</span>
-                <RadioGroup
-                  margin={1}
-                  onChange={(e) => setSelectedPart(e.target.value)} // Update state variable based on user selection
-                  value={selectedPart} // Bind the state variable to the RadioGroup
-                  text=""
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "row",
-                      alignItems: "start",
-                      justifyContent: "space-between",
-                      marginRight: "5px",
-                      height: "20px",
-                      width: "70px",
-                    }}
-                  >
-                    <Radio
-                      name="i"
-                      value="I"
-                      label="Part I" // Optional: Add a label for clarity
-                      checked={selectedPart === "I"} // Check this Radio if the selectedPart is "i"
-                    />
-                    <Radio
-                      name="j"
-                      value="J"
-                      label="Part J" // Optional: Add a label for clarity
-                      checked={selectedPart === "J"} // Check this Radio if the selectedPart is "j"
-                    />
-                  </div>
-                </RadioGroup>
-              </div>
-              {/* <br></br> */}
-              <div
-                style={{ display: "flex", justifyContent: "space-between",marginTop: "15px"}}
-              >
-              <span style={{ fontSize: "14px" }}>Envelope Type</span>
-                <CheckGroup onChange={(e) => {
-            // Get the name of the clicked checkbox
-            const value = e.target.name;
-            
-            // Update selectedRange state based on the user's selection
-            if (value === "max") {
-                // Toggle the "max" selection
-                if (selectedRange === "max") {
-                    setSelectedRange(""); // Deselect "max"
-                } else if (selectedRange === "min") {
-                    setSelectedRange("both"); // Both "max" and "min" selected
-                } else {
-                    setSelectedRange("max"); // Select only "max"
-                }
-            } else if (value === "min") {
-                // Toggle the "min" selection
-                if (selectedRange === "min") {
-                    setSelectedRange(""); // Deselect "min"
-                } else if (selectedRange === "max") {
-                    setSelectedRange("both"); // Both "min" and "max" selected
-                } else {
-                    setSelectedRange("min"); // Select only "min"
-                }
-            }
-        }}
-        value={selectedRange} // Set the value prop to selectedRange state
-    >
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            {/* Use the name attribute to determine which checkbox was clicked */}
-            <Check name="max" label="Max" checked={selectedRange === "max" || selectedRange === "both"} />
-            <Check name="min" label="Min" checked={selectedRange === "min" || selectedRange === "both"} />
-        </div>
-    </CheckGroup>
-              </div>
-            </div>
-            <Separator />
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                margin: "10px",
-                justifyContent: "space-between",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "14px",
-                  color: "gray",
-                  marginBottom: "6px",
-                }}
-              >
-                Critical L.C from View by Max Value
-              </span>
-              <CheckGroup text="">
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-around",
-                    flexWrap: "wrap",
-                    height: "fit-content",
-                    width: "100%",
-                    margin: "0",
+                    color: "gray",
                     marginBottom: "6px",
                   }}
                 >
+                  Critical L.C from View by Max Value
+                </span>
+                <CheckGroup text="">
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "space-between",
+                      justifyContent: "space-around",
+                      flexWrap: "wrap",
+                      height: "fit-content",
                       width: "100%",
+                      margin: "0",
+                      marginBottom: "6px",
                     }}
                   >
-                    {/* Adjust each checkbox's "checked" attribute and "onChange" handler */}
-                    <Check
-                      name="Fx"
-                      width="100px"
-                      height="30px"
-                      checked={selectedCheckboxes.includes("Fx") || all}
-                      onChange={() => handleCheckboxChange("Fx")}
-                    />
-                    <div style={{ marginRight: "0.4px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                      }}
+                    >
+                      {/* Adjust each checkbox's "checked" attribute and "onChange" handler */}
                       <Check
-                        name="Fy"
+                        name="Fx"
                         width="100px"
                         height="30px"
-                        checked={selectedCheckboxes.includes("Fy") || all}
-                        onChange={() => handleCheckboxChange("Fy")}
+                        checked={selectedCheckboxes.includes("Fx") || all}
+                        onChange={() => handleCheckboxChange("Fx")}
                       />
+                      <div style={{ marginRight: "0.4px" }}>
+                        <Check
+                          name="Fy"
+                          width="100px"
+                          height="30px"
+                          checked={selectedCheckboxes.includes("Fy") || all}
+                          onChange={() => handleCheckboxChange("Fy")}
+                        />
+                      </div>
+                      <div style={{ marginRight: "4.2px" }}>
+                        <Check
+                          name="Fz"
+                          height="30px"
+                          checked={selectedCheckboxes.includes("Fz") || all}
+                          onChange={() => handleCheckboxChange("Fz")}
+                        />
+                      </div>
                     </div>
-                    <div style={{ marginRight: "4.2px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        marginBottom: "5px",
+                      }}
+                    >
                       <Check
-                        name="Fz"
-                        height="30px"
-                        checked={selectedCheckboxes.includes("Fz") || all}
-                        onChange={() => handleCheckboxChange("Fz")}
+                        name="Mx"
+                        checked={selectedCheckboxes.includes("Mx") || all}
+                        onChange={() => handleCheckboxChange("Mx")}
+                      />
+                      <Check
+                        name="My"
+                        checked={selectedCheckboxes.includes("My") || all}
+                        onChange={() => handleCheckboxChange("My")}
+                      />
+                      <Check
+                        name="Mz"
+                        checked={selectedCheckboxes.includes("Mz") || all}
+                        onChange={() => handleCheckboxChange("Mz")}
                       />
                     </div>
                   </div>
@@ -1039,77 +1224,50 @@ return (
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "space-between",
+                      justifyContent: "center",
                       width: "100%",
-                      marginBottom: "5px",
+                      height: "20px",
+                      marginLeft: "0px",
                     }}
                   >
-                    <Check
-                      name="Mx"
-                      checked={selectedCheckboxes.includes("Mx") || all}
-                      onChange={() => handleCheckboxChange("Mx")}
-                    />
-                    <Check
-                      name="My"
-                      checked={selectedCheckboxes.includes("My") || all}
-                      onChange={() => handleCheckboxChange("My")}
-                    />
-                    <Check
-                      name="Mz"
-                      checked={selectedCheckboxes.includes("Mz") || all}
-                      onChange={() => handleCheckboxChange("Mz")}
-                    />
+                    <Button
+                      color="normal"
+                      onClick={handleSelectAll}
+                      width="100%"
+                      variant="outlined"
+                      style={{ color: "black" }}
+                    >
+                      {all ? "Deselect All" : "Select All"}
+                    </Button>
                   </div>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "100%",
-                    height: "20px",
-                    marginLeft: "0px",
-                  }}
-                >
-                  <Button
-                    color="normal"
-                    onClick={handleSelectAll}
-                    width="100%"
-                    variant="outlined"
-                    style={{ color: "black" }}
-                  >
-                    {all ? "Deselect All" : "Select All"}
-                  </Button>
-                </div>
-              </CheckGroup>
-            </div>
-          </Panel>
-        </div>
-        {/* <br></br> */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            margin: "0px",
-            marginTop: "10px",
-            marginBottom: "30px",
-          }}
-        >
-          {Buttons.NormalButton(
-            "contained",
-            "Import Load Combinations",
-            // fetchData
-            importLoadCombinations
-          )}
-          {Buttons.MainButton("contained", "Breakdown", () =>
-            BreakdownData(selectedCheckboxes, selectedRange)
-          )}
-        </div>
-      </Panel>
-    </GuideBox>
-  </div>
-);
-
+                </CheckGroup>
+              </div>
+            </Panel>
+          </div>
+          {/* <br></br> */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              margin: "0px",
+              marginTop: "10px",
+              marginBottom: "30px",
+            }}
+          >
+            {Buttons.NormalButton(
+              "contained",
+              "Import Load Combinations",
+              // fetchData
+              importLoadCombinations
+            )}
+            {Buttons.MainButton("contained", "Breakdown", () =>
+              BreakdownData(selectedCheckboxes, selectedRange)
+            )}
+          </div>
+        </Panel>
+      </GuideBox>
+    </div>
+  );
 }
 
 function AppWithSnackbar() {
