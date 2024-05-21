@@ -1,4 +1,5 @@
 import { VerifyUtil } from '@midasit-dev/moaui';
+import { enqueueSnackbar } from 'notistack';
 
 async function midasAPI(method, subURL, body) {
   const baseURL = await VerifyUtil.getBaseUrlAsync();
@@ -22,6 +23,17 @@ async function midasAPI(method, subURL, body) {
       }
     })
   }
+  // if(res.status!=200){
+  //   console.log(res.status)
+  //   enqueueSnackbar("Please Connect with MIDAS CIVIL", {
+  //     variant: "error",
+  //     anchorOrigin: {
+  //       vertical: "top",
+  //       horizontal: "center"        
+  //     },
+  //   });
+  //   return null;
+  // }
   return await res.json();
   }
 

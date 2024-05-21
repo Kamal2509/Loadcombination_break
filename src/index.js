@@ -12,6 +12,7 @@ root.render(
   <React.StrictMode>
     <SnackbarProvider 
 			maxSnack={6}
+			autoHideDuration={1000}
 			action={(key) => (
 				<IconButton transparent transparentColor="white" onClick={() => closeSnackbar(key)}>
 					<Icon iconName="Close" />
