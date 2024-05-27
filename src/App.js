@@ -90,17 +90,18 @@ function App() {
     // Map user selection to the corresponding index in force data
     const forceIndexMapping = {Fx:4,Fy:5,Fz: 6,Mx:7,My:8, Mz:9,};
     const selectedForceIndex = forceIndexMapping[userSelection];
-
+    let existingVCOMBIndex;
     // if load combination is add type
     if (selectedObject.iTYPE === 0) {
       // If iTYPE is 0, iterate through each vcombObj in vcombArray
+      
       for (const vcombObj of vcombArray) {
         let lcname = vcombObj.LCNAME;
 
         // Check if lcname is present in loadNames
         if (loadNames.includes(lcname)) {
           // If LCNAME is present in loadNames, push it into newVCOMB with proper factor
-          const existingVCOMBIndex = newVCOMB.findIndex(item => item.LCNAME === lcname);
+          existingVCOMBIndex = newVCOMB.findIndex(item => item.LCNAME === lcname);
           if (existingVCOMBIndex !== -1) {
             // Update the factor for the existing entry
             newVCOMB[existingVCOMBIndex].FACTOR += factor * vcombObj.FACTOR;
@@ -199,7 +200,7 @@ function App() {
         // Check if LCNAME is present in loadNames
         if (loadNames.includes(maxVcombObj.LCNAME)) {
           // Update newVCOMB array
-          const existingVCOMBIndex = newVCOMB.findIndex(
+            existingVCOMBIndex = newVCOMB.findIndex(
             (item) => item.LCNAME === maxVcombObj.LCNAME
           );
           if (existingVCOMBIndex !== -1) {
@@ -236,17 +237,38 @@ function App() {
                 }
 
                 // If targetLoadCombination is not null, iterate through its vCOMB list
+                // if (targetLoadCombination) {
+                //   for (const vcomb of targetLoadCombination.vCOMB) {
+                //     newVCOMB.push({
+                //       ANAL: vcomb.ANAL,
+                //       LCNAME: vcomb.LCNAME,
+                //       FACTOR: vcomb.FACTOR * maxCorrespondingFactor
+                //     });
+                //   }
+
+                //   return newVCOMB; // Return from the function
+                // }
                 if (targetLoadCombination) {
                   for (const vcomb of targetLoadCombination.vCOMB) {
-                    newVCOMB.push({
-                      ANAL: vcomb.ANAL,
-                      LCNAME: vcomb.LCNAME,
-                      FACTOR: vcomb.FACTOR * maxCorrespondingFactor
-                    });
+                    // Find the index of the existing entry with the same LCNAME
+                    const existingVCOMBIndex = newVCOMB.findIndex(item => item.LCNAME === vcomb.LCNAME);
+                
+                    if (existingVCOMBIndex !== -1) {
+                      // If an entry with the same LCNAME exists, update its FACTOR
+                      newVCOMB[existingVCOMBIndex].FACTOR += vcomb.FACTOR * maxCorrespondingFactor;
+                    } else {
+                      // If no entry with the same LCNAME exists, create a new one
+                      newVCOMB.push({
+                        ANAL: vcomb.ANAL,
+                        LCNAME: vcomb.LCNAME,
+                        FACTOR: vcomb.FACTOR * maxCorrespondingFactor
+                      });
+                    }
                   }
-
+                
                   return newVCOMB; // Return from the function
                 }
+                
               } else {
                 // If not all LCNAME values are present, proceed with recursive call
                 const newSelectedObject = loadCombination;
@@ -524,7 +546,41 @@ function App() {
         PARTS: [`Part ${selectedPart}`],
       },
     };
-
+    const cs_forces = {
+      Argument: {
+        TABLE_NAME: "BeamForce",
+        TABLE_TYPE: "BEAMFORCE",
+        EXPORT_PATH: "C:\\MIDAS\\Result\\Output.JSON",
+        STYLES: {
+          FORMAT: "Fixed",
+          PLACE: 12,
+        },
+        COMPONENTS: [
+          "Elem",
+          "Load",
+          "Part",
+          "Axial",
+          "Shear-y",
+          "Shear-z",
+          "Bend(+y)",
+          "Bend(-y)",
+          "Bend(+z)",
+          "Bend(-z)",
+          "Cb(min/max)",
+          "Cb1(-y+z)",
+          "Cb2(+y+z)",
+          "Cb3(+y-z)",
+          "Cb4(-y-z)",
+        ],
+        NODE_ELEMS: {
+          KEYS: [1],
+        },
+        LOAD_CASE_NAMES:  ["Summation(CS)","Dead Load(CS)","Tendon Primary(CS)","Creep Primary(CS)","Shrinkage Primary(CS)","Tendon Secondary(CS)","Creep Secondary(CS)","Shrinkage Secondary(CS)"],
+        PARTS: ["Part I", "Part J"],
+        OPT_CS: true,
+        STAGE_STEP: ["Min/Max:max"],
+      },
+    };
     const stct = await midasAPI("GET", "/db/stct");
     const stldData = await midasAPI("GET", "/db/stld");
     const smlc = await midasAPI("GET", "/db/smlc");
@@ -606,6 +662,7 @@ function App() {
               loadNames.push(erec.LTYPECC);
               loadCombinationNames_max.push(`${erec.LTYPECC}(CS)`);
               loadCombinationNames_min.push(`${erec.LTYPECC}(CS)`);
+              cs_forces.Argument.LOAD_CASE_NAMES.push(`${erec.LTYPECC}(CS)`);
             }
           });
         }
@@ -622,6 +679,7 @@ function App() {
             loadNames.push(name);
             loadCombinationNames_max.push(`${name}(ST)`);
             loadCombinationNames_min.push(`${name}(ST)`);
+            inputObject.Argument.LOAD_CASE_NAMES.push(`${name}(ST)`);
           }
         }
       }
@@ -636,6 +694,8 @@ function App() {
           loadNames.push(smlcName);
           loadCombinationNames_max.push(`${smlcName}(SM:max)`);
           loadCombinationNames_min.push(`${smlcName}(SM:min)`);
+          inputObject.Argument.LOAD_CASE_NAMES.push(`${smlcName}(SM:max)`);
+          inputObject.Argument.LOAD_CASE_NAMES.push(`${smlcName}(SM:min)`);
         }
       }
     }
@@ -650,6 +710,8 @@ function App() {
             loadNames.push(item.LCNAME);
             loadCombinationNames_max.push(`${item.LCNAME}(MV:max)`);
             loadCombinationNames_min.push(`${item.LCNAME}(MV:min)`);
+            inputObject.Argument.LOAD_CASE_NAMES.push(`${item.LCNAME}(MV:max)`);
+            inputObject.Argument.LOAD_CASE_NAMES.push(`${item.LCNAME}(MV:max)`);
           }
         }
       }
@@ -664,6 +726,7 @@ function App() {
           loadNames.push(spName);
           loadCombinationNames_max.push(`${spName}(RS)`);
           loadCombinationNames_min.push(`${spName}(RS)`);
+          inputObject.Argument.LOAD_CASE_NAMES.push(`${spName}(RS)`);
         }
       }
     }
@@ -748,24 +811,53 @@ function App() {
           };
 
           console.log(updatedArgument);
-
-          // Call the API to get forces for each selected force
-          
-          let forces = await midasAPI("POST", "/post/table", {
-              Argument: updatedArgument,
-            });
-console.log('forces',forces)
-         if('error' in forces){          
-          enqueueSnackbar("Please perform Analysis before load-Comb breakdown", {
-            variant: "error",
-            anchorOrigin: {
-              vertical: "top",
-              horizontal: "center",
-            },
+          // Call the API to get forces for each selected force with static load cases
+          let static_forces = await midasAPI("POST", "/post/table", {
+            Argument: updatedArgument,
           });
-          return null;
-         }
+          console.log(static_forces)
           
+          // Check if there's any error in the response
+          if ('error' in static_forces) {
+            enqueueSnackbar("Please perform Analysis before load-Comb breakdown", {
+              variant: "error",
+              anchorOrigin: {
+                vertical: "top",
+                horizontal: "center",
+              },
+            });
+            return null;
+          }
+          
+          // Fetch CS forces
+          let cstr_forces = await midasAPI("POST", "/post/table", {
+            Argument: cs_forces.Argument,
+          });
+          
+          // Check if there's any error in the response
+          if ('error' in cstr_forces) {
+            enqueueSnackbar("Please perform Analysis before load-Comb breakdown", {
+              variant: "error",
+              anchorOrigin: {
+                vertical: "top",
+                horizontal: "center",
+              },
+            });
+            return null;
+          }
+          console.log(cstr_forces)
+          
+          // Ensure both responses are arrays and have the same length
+          
+          // Combine the forces
+          const forces = {
+            ...static_forces,
+            BeamForce: {
+              ...static_forces.BeamForce,
+              DATA: static_forces.BeamForce.DATA.concat(cstr_forces.BeamForce.DATA),
+            },
+          };
+          console.log('forces:', forces);
          
 
           console.log(
