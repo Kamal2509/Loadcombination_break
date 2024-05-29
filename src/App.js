@@ -361,7 +361,7 @@ function App() {
       loadNames.includes(item.LCNAME)
     );
     // const newLoadCaseNameValue = selectedObject.Name || newLoadCaseName;
-    const newLoadCaseNameValue = newLoadCaseName;
+    const newLoadCaseNameValue = newLoadCaseName || selectedObject.NAME;
 
     // If all LCNAME values are present, proceed to check the selectedObject iTYPE
     if (allLCNamesPresent) {
@@ -451,6 +451,7 @@ function App() {
 
   async function BreakdownData(selectedForces, selectedRange) {
     console.log(selectedForces,selectedRange)
+    console.log(elementArray[0]);
     if(selectedForces.length===0){
       enqueueSnackbar("Please Select Force Criteria", {
             variant: "error",
@@ -483,19 +484,19 @@ function App() {
     console.log(LoadCombinations);
     console.log(loadCombinations);
 
-    const element = await fetchElement();
-    if (!newLoadCaseName) {
-      enqueueSnackbar("Please Enter New Load Combination Name", {
-        variant: "error",
-        anchorOrigin: {
-          vertical: "top",
-          horizontal: "center",
-        },
-        preventDuplicate: true,
-        autoHideDuration: 1000,
-      });
-      return null;
-    }
+    // const element = await fetchElement();
+    // if (!newLoadCaseName) {
+    //   enqueueSnackbar("Please Enter New Load Combination Name", {
+    //     variant: "error",
+    //     anchorOrigin: {
+    //       vertical: "top",
+    //       horizontal: "center",
+    //     },
+    //     preventDuplicate: true,
+    //     autoHideDuration: 1000,
+    //   });
+    //   return null;
+    // }
 
     const inputObject = {
       Argument: {
@@ -522,7 +523,7 @@ function App() {
           "Moment-z",
         ],
         NODE_ELEMS: {
-          KEYS: element || [1],
+          KEYS: [1],
         },
         LOAD_CASE_NAMES: ["load(CB:all)"],
         PARTS: [`Part ${selectedPart}`],
@@ -549,7 +550,7 @@ function App() {
           "Moment-z",
         ],
         NODE_ELEMS: {
-          KEYS: element || [1],
+          KEYS:  [1],
         },
         LOAD_CASE_NAMES:  ["Summation(CS)","Dead Load(CS)","Tendon Primary(CS)","Creep Primary(CS)","Shrinkage Primary(CS)","Tendon Secondary(CS)","Creep Secondary(CS)","Shrinkage Secondary(CS)"],
         PARTS: [`Part ${selectedPart}`],
@@ -756,13 +757,19 @@ function App() {
       }
       return;
     }
-
+    let a = 0;
+    for (let i = 0; i < elementArray.length; i++) {
     // Define the different load combination sets
+    console.log(elementArray.length);
     const loadCombinationSets = [
       { name: "max", loadCombinationNames: loadCombinationNames_max },
       { name: "min", loadCombinationNames: loadCombinationNames_min },
     ];
-    let a = 0;
+    inputObject.Argument.NODE_ELEMS.KEYS = [elementArray[i]];
+    cs_forces.Argument.NODE_ELEMS.KEYS = [elementArray[i]];
+    console.log(cs_forces);
+    console.log(inputObject);
+    // let a = 0;
 
     for (const { name, loadCombinationNames } of loadCombinationSets) {
       console.log(`Processing ${name} load combinations`);
@@ -868,7 +875,7 @@ function App() {
 
             // Update properties of the updated object
             updatedObject.iTYPE = 0;
-            updatedObject.NAME = `${updatedObject.NAME}_${name}`;
+            updatedObject.NAME = `${updatedObject.NAME}_${name}_${elementArray[i]}`;
 
             // Create a payload object with the Assign property
             const payload = {
@@ -898,6 +905,7 @@ function App() {
         }
       }
     }
+  }
     // Once all iterations are complete, send the newLoadCombinations object to the midasAPI
     const response = await midasAPI("PUT", `${successfulEndpoint}`, {
       Assign: newLoadCombinations,
@@ -957,7 +965,7 @@ function App() {
         });
         return null; // Return null as there are no elements
       }
-      if (elements.length > 1) {
+      if (elements.length > 5) {
         // If the elements array has more than one element, display an enqueueSnackbar notification
         enqueueSnackbar("Please select only one element", {
           variant: "warning",
@@ -969,7 +977,7 @@ function App() {
         return null;
       }
 
-      setFirstSelectedElement(elements[0]);
+      // setFirstSelectedElement(elements[0]);
       setelement(elements);
       return elements;
     } catch (error) {
@@ -1035,6 +1043,7 @@ function App() {
   }, []);
   const combArray = Object.values(comb);
   const elementArray = Object.values(elem);
+  
 
   return (
     <div className="App">
@@ -1124,7 +1133,7 @@ function App() {
                     }}
                   >
                     <div style={{ fontSize: "12px", paddingBottom: "2px" }}>
-                      {firstSelectedElement}
+                      {elementArray.join(",")}
                     </div>
                   </div>
                 </div>
