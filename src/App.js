@@ -57,18 +57,14 @@ function App() {
   const handleRangeChange = (e) => {
     const value = e.target.name;
 
-    // Update `selectedRange` based on the user's selection
     if (selectedRange.includes(value)) {
-      // If the value is already in the array, remove it
       setSelectedRange(selectedRange.filter((range) => range !== value));
     } else {
-      // If the value is not in the array, add it
       setSelectedRange([...selectedRange, value]);
     }
   };
 
   function getAdjustedLCName(lcname, loadCombinations, name) {
-    // Find the entry in loadCombinations with the given LCNAME
     const combinationEntry = Object.values(loadCombinations).find(
       (combination) => combination.NAME === lcname
     );
@@ -80,7 +76,6 @@ function App() {
   }
 
   async function searchLoadCombination(factor,vcombArray,newVCOMB,loadNames,loadCombinations,selectedObject,beamforces,userSelection,name) {
-    // Map user selection to the corresponding index in force data
     const forceIndexMapping = {Fx:4,Fy:5,Fz: 6,Mx:7,My:8, Mz:9,};
     const selectedForceIndex = forceIndexMapping[userSelection];
     let existingVCOMBIndex;
@@ -164,12 +159,8 @@ function App() {
           (force) => force[2] === lcname
         );
 
-        // Calculate the selected force value and its corresponding factor
         for (const forceData of filteredForces) {
-          // Calculate the selected force value
           let selectedForceValue = forceData[selectedForceIndex] * vcombObj.FACTOR;
-
-          // Check the maximum and minimum force values based on the `name` parameter
           if (name === "max") {
             // Update maxForceValue and maxCorrespondingFactor if necessary
             if (selectedForceValue > maxForceValue) {
@@ -450,28 +441,6 @@ function App() {
   }
 
   async function BreakdownData(selectedForces, selectedRange) {
-    console.log(selectedForces,selectedRange)
-    console.log(elementArray[0]);
-    if(selectedForces.length===0){
-      enqueueSnackbar("Please Select Force Criteria", {
-            variant: "error",
-            anchorOrigin: {
-              vertical: "top",
-              horizontal: "center"        
-            },
-          });
-          return null;
-    }
-    if(selectedRange===''){
-      enqueueSnackbar("Please Select Envelop Type", {
-            variant: "error",
-            anchorOrigin: {
-              vertical: "top",
-              horizontal: "center"        
-            },
-          });
-          return null;
-    }
     await fetchData();
     const LoadCombinations = comb;
 
@@ -483,20 +452,6 @@ function App() {
     loadCombinations = Object.values(LoadCombinations);
     console.log(LoadCombinations);
     console.log(loadCombinations);
-
-    // const element = await fetchElement();
-    // if (!newLoadCaseName) {
-    //   enqueueSnackbar("Please Enter New Load Combination Name", {
-    //     variant: "error",
-    //     anchorOrigin: {
-    //       vertical: "top",
-    //       horizontal: "center",
-    //     },
-    //     preventDuplicate: true,
-    //     autoHideDuration: 1000,
-    //   });
-    //   return null;
-    // }
 
     const inputObject = {
       Argument: {
@@ -876,6 +831,16 @@ function App() {
             // Update properties of the updated object
             updatedObject.iTYPE = 0;
             updatedObject.NAME = `${updatedObject.NAME}_${name}_${elementArray[i]}`;
+            if (updatedObject.NAME.length > 20) {
+               enqueueSnackbar("Error: Load combination name length exceeds 20 characters. Reduce the load combination name length.", {
+        variant: "error",
+        anchorOrigin: {
+          vertical: "top",
+          horizontal: "center",
+        },
+      });
+      return;
+            }
 
             // Create a payload object with the Assign property
             const payload = {
@@ -976,8 +941,6 @@ function App() {
         });
         return null;
       }
-
-      // setFirstSelectedElement(elements[0]);
       setelement(elements);
       return elements;
     } catch (error) {
