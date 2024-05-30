@@ -25,34 +25,29 @@ function App() {
   const [selectedCheckboxes, setSelectedCheckboxes] = useState(["Fx"]);
   const [all, setAll] = useState(false);
   const [comb, setComb] = useState({});
-  const [elem, setelement] = useState({});
-  const [firstSelectedElement, setFirstSelectedElement] = useState(null);
+  const [elem,setelement] = useState({});
   const { enqueueSnackbar } = useSnackbar();
   const [selectedRadio, setSelectedRadio] = useState("");
   const [newLoadCaseName, setNewLoadCaseName] = useState("");
-  const [selectedObject, setSelectedObject] = useState(null);
-  const [selectedPart, setSelectedPart] = useState("I"); // Default to "i" or set initial value as needed
+  const [selectedObject] = useState(null);
+  const [selectedPart, setSelectedPart] = useState("I"); 
   let successfulEndpoint = null;
   const [selectedRange, setSelectedRange] = useState(["max"]);
 
   const handleCheckboxChange = (name) => {
     if (selectedCheckboxes.includes(name)) {
-      // If the checkbox is already selected, remove it from the state
       setSelectedCheckboxes(
         selectedCheckboxes.filter((checkbox) => checkbox !== name)
       );
     } else {
-      // If the checkbox is not selected, add it to the state
       setSelectedCheckboxes([...selectedCheckboxes, name]);
     }
   };
 
   const handleSelectAll = () => {
     if (all) {
-      // If currently selecting all, clear the state
       setSelectedCheckboxes([]);
     } else {
-      // If currently deselecting all, select all checkboxes
       setSelectedCheckboxes(["Fx", "Fy", "Fz", "Mx", "My", "Mz"]);
     }
     setAll(!all);
@@ -61,46 +56,39 @@ function App() {
   const handleRangeChange = (e) => {
     const value = e.target.name;
 
-    // Update `selectedRange` based on the user's selection
     if (selectedRange.includes(value)) {
-      // If the value is already in the array, remove it
       setSelectedRange(selectedRange.filter((range) => range !== value));
     } else {
-      // If the value is not in the array, add it
       setSelectedRange([...selectedRange, value]);
     }
   };
 
   function getAdjustedLCName(lcname, loadCombinations, name) {
-    // Find the entry in loadCombinations with the given LCNAME
     const combinationEntry = Object.values(loadCombinations).find(
       (combination) => combination.NAME === lcname
     );
 
-    // If the entry exists and its iTYPE is 1, adjust the lcname by appending "_name"
     if (combinationEntry && combinationEntry.iTYPE === 1) {
       lcname += `(${name})`;
     }
-
-    // Return the adjusted or original lcname
     return lcname;
   }
 
   async function searchLoadCombination(factor,vcombArray,newVCOMB,loadNames,loadCombinations,selectedObject,beamforces,userSelection,name) {
-    // Map user selection to the corresponding index in force data
     const forceIndexMapping = {Fx:4,Fy:5,Fz: 6,Mx:7,My:8, Mz:9,};
     const selectedForceIndex = forceIndexMapping[userSelection];
-
+    let existingVCOMBIndex;
     // if load combination is add type
     if (selectedObject.iTYPE === 0) {
       // If iTYPE is 0, iterate through each vcombObj in vcombArray
+      
       for (const vcombObj of vcombArray) {
         let lcname = vcombObj.LCNAME;
 
         // Check if lcname is present in loadNames
         if (loadNames.includes(lcname)) {
           // If LCNAME is present in loadNames, push it into newVCOMB with proper factor
-          const existingVCOMBIndex = newVCOMB.findIndex(item => item.LCNAME === lcname);
+          existingVCOMBIndex = newVCOMB.findIndex(item => item.LCNAME === lcname);
           if (existingVCOMBIndex !== -1) {
             // Update the factor for the existing entry
             newVCOMB[existingVCOMBIndex].FACTOR += factor * vcombObj.FACTOR;
@@ -170,12 +158,8 @@ function App() {
           (force) => force[2] === lcname
         );
 
-        // Calculate the selected force value and its corresponding factor
         for (const forceData of filteredForces) {
-          // Calculate the selected force value
           let selectedForceValue = forceData[selectedForceIndex] * vcombObj.FACTOR;
-
-          // Check the maximum and minimum force values based on the `name` parameter
           if (name === "max") {
             // Update maxForceValue and maxCorrespondingFactor if necessary
             if (selectedForceValue > maxForceValue) {
@@ -199,7 +183,7 @@ function App() {
         // Check if LCNAME is present in loadNames
         if (loadNames.includes(maxVcombObj.LCNAME)) {
           // Update newVCOMB array
-          const existingVCOMBIndex = newVCOMB.findIndex(
+            existingVCOMBIndex = newVCOMB.findIndex(
             (item) => item.LCNAME === maxVcombObj.LCNAME
           );
           if (existingVCOMBIndex !== -1) {
@@ -234,19 +218,27 @@ function App() {
                     break; // Exit the loop as we found the matching LCNAME
                   }
                 }
-
-                // If targetLoadCombination is not null, iterate through its vCOMB list
                 if (targetLoadCombination) {
                   for (const vcomb of targetLoadCombination.vCOMB) {
-                    newVCOMB.push({
-                      ANAL: vcomb.ANAL,
-                      LCNAME: vcomb.LCNAME,
-                      FACTOR: vcomb.FACTOR * maxCorrespondingFactor
-                    });
+                    // Find the index of the existing entry with the same LCNAME
+                    const existingVCOMBIndex = newVCOMB.findIndex(item => item.LCNAME === vcomb.LCNAME);
+                
+                    if (existingVCOMBIndex !== -1) {
+                      // If an entry with the same LCNAME exists, update its FACTOR
+                      newVCOMB[existingVCOMBIndex].FACTOR += vcomb.FACTOR * maxCorrespondingFactor;
+                    } else {
+                      // If no entry with the same LCNAME exists, create a new one
+                      newVCOMB.push({
+                        ANAL: vcomb.ANAL,
+                        LCNAME: vcomb.LCNAME,
+                        FACTOR: vcomb.FACTOR * maxCorrespondingFactor
+                      });
+                    }
                   }
-
+                
                   return newVCOMB; // Return from the function
                 }
+                
               } else {
                 // If not all LCNAME values are present, proceed with recursive call
                 const newSelectedObject = loadCombination;
@@ -308,11 +300,20 @@ function App() {
                 // If targetLoadCombination is not null, iterate through its vCOMB list
                 if (targetLoadCombination) {
                   for (const vcomb of targetLoadCombination.vCOMB) {
-                    newVCOMB.push({
-                      ANAL: vcomb.ANAL,
-                      LCNAME: vcomb.LCNAME,
-                      FACTOR: vcomb.FACTOR * minCorrespondingFactor
-                    });
+                    // Find the index of the existing entry with the same LCNAME
+                    const existingVCOMBIndex = newVCOMB.findIndex(item => item.LCNAME === vcomb.LCNAME);
+                
+                    if (existingVCOMBIndex !== -1) {
+                      // If an entry with the same LCNAME exists, update its FACTOR
+                      newVCOMB[existingVCOMBIndex].FACTOR += vcomb.FACTOR * minCorrespondingFactor;
+                    } else {
+                      // If no entry with the same LCNAME exists, create a new one
+                      newVCOMB.push({
+                        ANAL: vcomb.ANAL,
+                        LCNAME: vcomb.LCNAME,
+                        FACTOR: vcomb.FACTOR * minCorrespondingFactor
+                      });
+                    }
                   }
                   return newVCOMB;
                 }
@@ -350,7 +351,7 @@ function App() {
       loadNames.includes(item.LCNAME)
     );
     // const newLoadCaseNameValue = selectedObject.Name || newLoadCaseName;
-    const newLoadCaseNameValue = newLoadCaseName;
+    const newLoadCaseNameValue = newLoadCaseName || selectedObject.NAME;
 
     // If all LCNAME values are present, proceed to check the selectedObject iTYPE
     if (allLCNamesPresent) {
@@ -425,10 +426,8 @@ function App() {
         name
       );
       console.log(newVCOMB);
-      // Combine newLoadCaseNameValue and selectedForce in the desired manner
       const newLoadCaseNameValue_selectedForce = `${newLoadCaseNameValue}_${selectedForce}`;
 
-      // Now use the combined name in the newObject
       const newObject = {
         ...selectedObject,
         NAME: newLoadCaseNameValue_selectedForce,
@@ -441,29 +440,6 @@ function App() {
   }
 
   async function BreakdownData(selectedForces, selectedRange) {
-    console.log(selectedForces,selectedRange)
-    if(selectedForces.length==0){
-      enqueueSnackbar("Please Select Force Criteria", {
-            variant: "error",
-            anchorOrigin: {
-              vertical: "top",
-              horizontal: "center"        
-            },
-          });
-          return null;
-    }
-    if(selectedRange==''){
-      enqueueSnackbar("Please Select Envelop Type", {
-            variant: "error",
-            anchorOrigin: {
-              vertical: "top",
-              horizontal: "center"        
-            },
-          });
-          return null;
-    }
-    // try {
-    // Fetch the necessary data
     await fetchData();
     const LoadCombinations = comb;
 
@@ -475,20 +451,6 @@ function App() {
     loadCombinations = Object.values(LoadCombinations);
     console.log(LoadCombinations);
     console.log(loadCombinations);
-
-    const element = await fetchElement();
-    if (!newLoadCaseName) {
-      enqueueSnackbar("Please Enter New Load Combination Name", {
-        variant: "error",
-        anchorOrigin: {
-          vertical: "top",
-          horizontal: "center",
-        },
-        preventDuplicate: true,
-        autoHideDuration: 1000,
-      });
-      return null;
-    }
 
     const inputObject = {
       Argument: {
@@ -513,18 +475,43 @@ function App() {
           "Torsion",
           "Moment-y",
           "Moment-z",
-          "Bi-Moment",
-          "T-Moment",
-          "W-Moment",
         ],
         NODE_ELEMS: {
-          KEYS: element || [1],
+          KEYS: [1],
         },
         LOAD_CASE_NAMES: ["load(CB:all)"],
         PARTS: [`Part ${selectedPart}`],
       },
     };
-
+    const cs_forces = {
+      Argument: {
+        TABLE_NAME: "BeamForce",
+        TABLE_TYPE: "BEAMFORCE",
+        EXPORT_PATH: "C:\\MIDAS\\Result\\Output.JSON",
+        STYLES: {
+          FORMAT: "Fixed",
+          PLACE: 12,
+        },
+        COMPONENTS: [
+          "Elem",
+          "Load",
+          "Part",
+          "Axial",
+          "Shear-y",
+          "Shear-z",
+          "Torsion",
+          "Moment-y",
+          "Moment-z",
+        ],
+        NODE_ELEMS: {
+          KEYS:  [1],
+        },
+        LOAD_CASE_NAMES:  ["Summation(CS)","Dead Load(CS)","Tendon Primary(CS)","Creep Primary(CS)","Shrinkage Primary(CS)","Tendon Secondary(CS)","Creep Secondary(CS)","Shrinkage Secondary(CS)"],
+        PARTS: [`Part ${selectedPart}`],
+        OPT_CS: true,
+        STAGE_STEP: [],
+      },
+    };
     const stct = await midasAPI("GET", "/db/stct");
     const stldData = await midasAPI("GET", "/db/stld");
     const smlc = await midasAPI("GET", "/db/smlc");
@@ -566,8 +553,8 @@ function App() {
         // Return an array of names
         return names_max;
       })
-      .flat() // Flatten the nested arrays
-      .filter((name) => name !== null); // Filter out null values if any
+      .flat() 
+      .filter((name) => name !== null);
 
     const loadCombinationNames_min = Object.values(loadCombinations)
       .filter((combination) => typeof combination === "object") // Filter out non-object properties
@@ -606,6 +593,7 @@ function App() {
               loadNames.push(erec.LTYPECC);
               loadCombinationNames_max.push(`${erec.LTYPECC}(CS)`);
               loadCombinationNames_min.push(`${erec.LTYPECC}(CS)`);
+              cs_forces.Argument.LOAD_CASE_NAMES.push(`${erec.LTYPECC}(CS)`);
             }
           });
         }
@@ -622,6 +610,7 @@ function App() {
             loadNames.push(name);
             loadCombinationNames_max.push(`${name}(ST)`);
             loadCombinationNames_min.push(`${name}(ST)`);
+            inputObject.Argument.LOAD_CASE_NAMES.push(`${name}(ST)`);
           }
         }
       }
@@ -636,6 +625,8 @@ function App() {
           loadNames.push(smlcName);
           loadCombinationNames_max.push(`${smlcName}(SM:max)`);
           loadCombinationNames_min.push(`${smlcName}(SM:min)`);
+          inputObject.Argument.LOAD_CASE_NAMES.push(`${smlcName}(SM:max)`);
+          inputObject.Argument.LOAD_CASE_NAMES.push(`${smlcName}(SM:min)`);
         }
       }
     }
@@ -650,6 +641,8 @@ function App() {
             loadNames.push(item.LCNAME);
             loadCombinationNames_max.push(`${item.LCNAME}(MV:max)`);
             loadCombinationNames_min.push(`${item.LCNAME}(MV:min)`);
+            inputObject.Argument.LOAD_CASE_NAMES.push(`${item.LCNAME}(MV:max)`);
+            inputObject.Argument.LOAD_CASE_NAMES.push(`${item.LCNAME}(MV:max)`);
           }
         }
       }
@@ -664,19 +657,16 @@ function App() {
           loadNames.push(spName);
           loadCombinationNames_max.push(`${spName}(RS)`);
           loadCombinationNames_min.push(`${spName}(RS)`);
+          inputObject.Argument.LOAD_CASE_NAMES.push(`${spName}(RS)`);
         }
       }
     }
-
-    // Initialize the newLoadCombinations object as a copy of LoadCombinations
     let newLoadCombinations = { ...LoadCombinations };
 
-    // Check if all `vCOMB` objects' `LCNAME` values in `selectedObject` are present in `loadNames`
-    // before starting the loop
     const selectedComb = combArray.find(
       (item) => item.NAME === selectedRadio
     );
-    if (selectedComb == undefined || selectedComb == null) {
+    if (selectedComb === undefined || selectedComb === null) {
 
       enqueueSnackbar("Please Select a Load Combination", {
         variant: "error",
@@ -687,7 +677,6 @@ function App() {
       });
       return null;
     }
-    // console.log(selectedComb,combArray, selectedRadio );
     const allLCNamesPresent = selectedComb.vCOMB.every((vcombObj) =>
       loadNames.includes(vcombObj.LCNAME)
     );
@@ -703,8 +692,7 @@ function App() {
         Assign: newLoadCombinations,
       });
 
-      // Provide feedback based on the response
-      if (response.status==200) {
+      if (response.status===200) {
         enqueueSnackbar("Data successfully entered", {
           variant: "success",
           anchorOrigin: {
@@ -721,24 +709,30 @@ function App() {
           },
         });
       }
-      // Break from the function as the condition is met
       return;
     }
-
+    let a = 0;
+    for (let i = 0; i < elementArray.length; i++) {
     // Define the different load combination sets
+    console.log(elementArray.length);
     const loadCombinationSets = [
       { name: "max", loadCombinationNames: loadCombinationNames_max },
       { name: "min", loadCombinationNames: loadCombinationNames_min },
     ];
-
-    // Iterate through each load combination set
-    let a = 0;
+    inputObject.Argument.NODE_ELEMS.KEYS = [elementArray[i]];
+    cs_forces.Argument.NODE_ELEMS.KEYS = [elementArray[i]];
+    console.log(cs_forces);
+    console.log(inputObject);
+    // let a = 0;
 
     for (const { name, loadCombinationNames } of loadCombinationSets) {
       console.log(`Processing ${name} load combinations`);
+      
+      
       if (selectedRange.includes(name)) {
         console.log(`Processing ${name} load combinations`);
-
+        cs_forces.Argument.STAGE_STEP = `Min/Max:${name}`;
+        console.log(cs_forces);
         let iterationOffset = 0 + a;
 
         for (const selectedForce of selectedForces) {
@@ -748,24 +742,50 @@ function App() {
           };
 
           console.log(updatedArgument);
-
-          // Call the API to get forces for each selected force
-          
-          let forces = await midasAPI("POST", "/post/table", {
-              Argument: updatedArgument,
-            });
-console.log('forces',forces)
-         if('error' in forces){          
-          enqueueSnackbar("Please perform Analysis before load-Comb breakdown", {
-            variant: "error",
-            anchorOrigin: {
-              vertical: "top",
-              horizontal: "center",
-            },
+          // Call the API to get forces for each selected force with static load cases
+          let static_forces = await midasAPI("POST", "/post/table", {
+            Argument: updatedArgument,
           });
-          return null;
-         }
+          console.log(static_forces)
           
+          // Check if there's any error in the response
+          if ('error' in static_forces) {
+            enqueueSnackbar("Please perform Analysis before load-Comb breakdown", {
+              variant: "error",
+              anchorOrigin: {
+                vertical: "top",
+                horizontal: "center",
+              },
+            });
+            return null;
+          }
+          
+          // Fetch CS forces
+          let cstr_forces = await midasAPI("POST", "/post/table", {
+            Argument: cs_forces.Argument,
+          });
+          
+          // Check if there's any error in the response
+          if ('error' in cstr_forces) {
+            enqueueSnackbar("Please perform Analysis before load-Comb breakdown", {
+              variant: "error",
+              anchorOrigin: {
+                vertical: "top",
+                horizontal: "center",
+              },
+            });
+            return null;
+          }
+          console.log(cstr_forces);
+          // Combine the forces
+          const forces = {
+            ...static_forces,
+            BeamForce: {
+              ...static_forces.BeamForce,
+              DATA: static_forces.BeamForce.DATA.concat(cstr_forces.BeamForce.DATA),
+            },
+          };
+          console.log('forces:', forces);
          
 
           console.log(
@@ -796,7 +816,6 @@ console.log('forces',forces)
             `iTYPE of selected combination for ${selectedForce} with ${name} load combinations:`,
             selectedComb.iTYPE
           );
-
           // Process the selected force separately
           let updatedObject = null;
           if (selectedComb.iTYPE === 0 || selectedComb.iTYPE === 1) {
@@ -810,7 +829,17 @@ console.log('forces',forces)
 
             // Update properties of the updated object
             updatedObject.iTYPE = 0;
-            updatedObject.NAME = `${updatedObject.NAME}_${name}`;
+            updatedObject.NAME = `${updatedObject.NAME}_${name}_${elementArray[i]}`;
+            if (updatedObject.NAME.length > 20) {
+               enqueueSnackbar("Error: Load combination name length exceeds 20 characters. Reduce the load combination name length.", {
+        variant: "error",
+        anchorOrigin: {
+          vertical: "top",
+          horizontal: "center",
+        },
+      });
+      return;
+            }
 
             // Create a payload object with the Assign property
             const payload = {
@@ -824,9 +853,6 @@ console.log('forces',forces)
               `Updating object for force ${selectedForce} with ${name} load combinations:`,
               updatedObject
             );
-
-            // Add to newLoadCombinations object
-            //newLoadCombinations[newLoadCombinationID] = payload.Assign;
 
             console.log(
               `Updated object for force ${selectedForce} with ${name} load combinations:`,
@@ -843,6 +869,7 @@ console.log('forces',forces)
         }
       }
     }
+  }
     // Once all iterations are complete, send the newLoadCombinations object to the midasAPI
     const response = await midasAPI("PUT", `${successfulEndpoint}`, {
       Assign: newLoadCombinations,
@@ -867,17 +894,6 @@ console.log('forces',forces)
       });
     }
     console.log("New Load Combinations:", response);
-    // }
-    // catch (error) {
-    //   console.error("Error in BreakdownData:", error);
-    //   enqueueSnackbar("Error processing data", {
-    //     variant: "error",
-    //     anchorOrigin: {
-    //       vertical: "top",
-    //       horizontal: "center",
-    //     },
-    //   });
-    // }
   }
 
 
@@ -913,9 +929,9 @@ console.log('forces',forces)
         });
         return null; // Return null as there are no elements
       }
-      if (elements.length > 1) {
+      if (elements.length > 5) {
         // If the elements array has more than one element, display an enqueueSnackbar notification
-        enqueueSnackbar("Please select only one element", {
+        enqueueSnackbar("Please select upto 5 elements only", {
           variant: "warning",
           anchorOrigin: {
             vertical: "top",
@@ -924,8 +940,6 @@ console.log('forces',forces)
         });
         return null;
       }
-
-      setFirstSelectedElement(elements[0]);
       setelement(elements);
       return elements;
     } catch (error) {
@@ -936,8 +950,6 @@ console.log('forces',forces)
 
   async function fetchData() {
     
-      // let resLoadCombinations = null;
-
       // Define a list of endpoints and their respective expected data keys
       const endpointsDataKeys = [
         { endpoint: "/db/lcom-gen", dataKey: "LCOM-GEN" },
@@ -952,14 +964,11 @@ console.log('forces',forces)
         try {
           // Make a GET request to the endpoint
           const response = await midasAPI("GET", endpoint);
-
-          // Check if the response does not contain any error
           if (response && !response.error) {
-            // Data is found and there is no error, handle it based on the endpoint
             setComb(response[dataKey]);
             console.log(`Data from ${endpoint}:`, response[dataKey]);
             successfulEndpoint = endpoint;
-            return; // Exit the function since data is found and handled
+            return; 
           } else {
             enqueueSnackbar("Please Connect with MIDAS CIVIL", {
                   variant: "error",
@@ -971,7 +980,6 @@ console.log('forces',forces)
                 return null;
           }
         } catch (error) {
-          // Log the error and continue to the next endpoint
           console.error(`Error fetching data from ${endpoint}:`, error);
           enqueueSnackbar("Unable to Fetch Data Check Connection", {
             variant: "error",
@@ -983,9 +991,6 @@ console.log('forces',forces)
           return null;
         }
       }
-
-      // If all endpoints failed to return data or returned empty data, log a message
-      // console.log("Load Combinations: No data found in any of the endpoints.");
       fetchElement();
     
   }
@@ -998,10 +1003,9 @@ console.log('forces',forces)
       setDialogShowState(true);
     }
   }, []);
-  // const { enqueueSnackbar } = useSnackbar();
   const combArray = Object.values(comb);
   const elementArray = Object.values(elem);
-  // console.log(elementArray);
+  
 
   return (
     <div className="App">
@@ -1091,7 +1095,7 @@ console.log('forces',forces)
                     }}
                   >
                     <div style={{ fontSize: "12px", paddingBottom: "2px" }}>
-                      {firstSelectedElement}
+                      {elementArray.join(",")}
                     </div>
                   </div>
                 </div>
