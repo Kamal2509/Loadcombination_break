@@ -26,7 +26,6 @@ function App() {
   const [all, setAll] = useState(false);
   const [comb, setComb] = useState({});
   const [elem,setelement] = useState({});
-  const [firstSelectedElement, setFirstSelectedElement] = useState(null);
   const { enqueueSnackbar } = useSnackbar();
   const [selectedRadio, setSelectedRadio] = useState("");
   const [newLoadCaseName, setNewLoadCaseName] = useState("");
