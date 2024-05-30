@@ -931,7 +931,7 @@ function App() {
       }
       if (elements.length > 5) {
         // If the elements array has more than one element, display an enqueueSnackbar notification
-        enqueueSnackbar("Please select only one element", {
+        enqueueSnackbar("Please select upto 5 elements only", {
           variant: "warning",
           anchorOrigin: {
             vertical: "top",
