@@ -681,34 +681,15 @@ function App() {
       loadNames.includes(vcombObj.LCNAME)
     );
 
-    // If all LCNAME values are present, update selectedObject.NAME to newLoadCaseName and add it to newLoadCombinations
     if (allLCNamesPresent) {
-      const newCombination = { ...selectedComb, NAME: newLoadCaseName };
-      // Add the new combination to newLoadCombinations at the key lastKey + 1
-      newLoadCombinations[lastKey + 1] = newCombination;
-
-      // Send the newLoadCombinations object to the midasAPI
-      const response = await midasAPI("PUT", `${successfulEndpoint}`, {
-        Assign: newLoadCombinations,
+     
+      enqueueSnackbar("All loadcases are already present inside the LoadCombination", {
+        variant: "error",
+        anchorOrigin: {
+          vertical: "top",
+          horizontal: "center"
+        },
       });
-
-      if (response.status===200) {
-        enqueueSnackbar("Data successfully entered", {
-          variant: "success",
-          anchorOrigin: {
-            vertical: "top",
-            horizontal: "center",
-          },
-        });
-      } else {
-        enqueueSnackbar("Error updating data", {
-          variant: "error",
-          anchorOrigin: {
-            vertical: "top",
-            horizontal: "center",
-          },
-        });
-      }
       return;
     }
     let a = 0;
